@@ -20,13 +20,14 @@ package ibmcsidriver
 import (
 	"errors"
 	"fmt"
-	"k8s.io/utils/exec"
-	testingexec "k8s.io/utils/exec/testing"
 	"os"
 	"reflect"
 	"runtime"
 	"strings"
 	"testing"
+
+	"k8s.io/utils/exec"
+	testingexec "k8s.io/utils/exec/testing"
 
 	"github.com/IBM/ibm-csi-common/pkg/utils"
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
@@ -261,6 +262,7 @@ func TestNodeStageVolume(t *testing.T) {
 	testCases := []struct {
 		name       string
 		req        *csi.NodeStageVolumeRequest
+		actions    []testingexec.FakeCommandAction
 		expErrCode codes.Code
 	}{
 		{
@@ -270,6 +272,58 @@ func TestNodeStageVolume(t *testing.T) {
 				StagingTargetPath: defaultStagingPath,
 				VolumeCapability:  stdVolCap[0],
 				PublishContext:    map[string]string{PublishInfoDevicePath: "/dev"},
+			},
+			actions: []testingexec.FakeCommandAction{
+				makeFakeCmd(
+					&testingexec.FakeCmd{
+						CombinedOutputScript: []testingexec.FakeAction{
+							func() ([]byte, []byte, error) {
+								return []byte("DEVNAME=/dev/sdb\nTYPE=ext4"), nil, nil
+							},
+						},
+					},
+					"blkid",
+				),
+				makeFakeCmd(
+					&testingexec.FakeCmd{
+						CombinedOutputScript: []testingexec.FakeAction{
+							func() ([]byte, []byte, error) {
+								return []byte("1"), nil, nil
+							},
+						},
+					},
+					"mkfs.ext2",
+				),
+				makeFakeCmd(
+					&testingexec.FakeCmd{
+						CombinedOutputScript: []testingexec.FakeAction{
+							func() ([]byte, []byte, error) {
+								return []byte("1"), nil, nil
+							},
+						},
+					},
+					"blockdev",
+				),
+				makeFakeCmd(
+					&testingexec.FakeCmd{
+						CombinedOutputScript: []testingexec.FakeAction{
+							func() ([]byte, []byte, error) {
+								return []byte("DEVNAME=/dev/sdb\nTYPE=ext4"), nil, nil
+							},
+						},
+					},
+					"blkid",
+				),
+				makeFakeCmd(
+					&testingexec.FakeCmd{
+						CombinedOutputScript: []testingexec.FakeAction{
+							func() ([]byte, []byte, error) {
+								return []byte("block size: 1\nblock count: 1"), nil, nil
+							},
+						},
+					},
+					"dumpe2fs",
+				),
 			},
 			expErrCode: codes.OK,
 		},
@@ -335,62 +389,9 @@ func TestNodeStageVolume(t *testing.T) {
 		},
 	}
 
-	actionList := []testingexec.FakeCommandAction{
-		makeFakeCmd(
-			&testingexec.FakeCmd{
-				CombinedOutputScript: []testingexec.FakeAction{
-					func() ([]byte, []byte, error) {
-						return []byte("DEVNAME=/dev/sdb\nTYPE=ext4"), nil, nil
-					},
-				},
-			},
-			"blkid",
-		),
-		makeFakeCmd(
-			&testingexec.FakeCmd{
-				CombinedOutputScript: []testingexec.FakeAction{
-					func() ([]byte, []byte, error) {
-						return []byte("1"), nil, nil
-					},
-				},
-			},
-			"mkfs.ext2",
-		),
-		makeFakeCmd(
-			&testingexec.FakeCmd{
-				CombinedOutputScript: []testingexec.FakeAction{
-					func() ([]byte, []byte, error) {
-						return []byte("1"), nil, nil
-					},
-				},
-			},
-			"blockdev",
-		),
-		makeFakeCmd(
-			&testingexec.FakeCmd{
-				CombinedOutputScript: []testingexec.FakeAction{
-					func() ([]byte, []byte, error) {
-						return []byte("DEVNAME=/dev/sdb\nTYPE=ext4"), nil, nil
-					},
-				},
-			},
-			"blkid",
-		),
-		makeFakeCmd(
-			&testingexec.FakeCmd{
-				CombinedOutputScript: []testingexec.FakeAction{
-					func() ([]byte, []byte, error) {
-						return []byte("block size: 1\nblock count: 1"), nil, nil
-					},
-				},
-			},
-			"dumpe2fs",
-		),
-	}
-
-	icDriver := initIBMCSIDriver(t, actionList...)
 	for _, tc := range testCases {
 		t.Logf("Test case: %s", tc.name)
+		icDriver := initIBMCSIDriver(t, tc.actions...)
 		_, err := icDriver.ns.NodeStageVolume(context.Background(), tc.req)
 		if err != nil {
 			serverError, ok := status.FromError(err)
