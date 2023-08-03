@@ -26,6 +26,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/IBM/ibm-csi-common/pkg/mountmanager"
+	"k8s.io/mount-utils"
 	"k8s.io/utils/exec"
 	testingexec "k8s.io/utils/exec/testing"
 
@@ -264,6 +266,7 @@ func TestNodeStageVolume(t *testing.T) {
 		req        *csi.NodeStageVolumeRequest
 		actions    []testingexec.FakeCommandAction
 		expErrCode codes.Code
+		expMount   *mount.MountPoint
 	}{
 		{
 			name: "Valid request",
@@ -271,7 +274,7 @@ func TestNodeStageVolume(t *testing.T) {
 				VolumeId:          volumeID,
 				StagingTargetPath: defaultStagingPath,
 				VolumeCapability:  stdVolCap[0],
-				PublishContext:    map[string]string{PublishInfoDevicePath: "/dev"},
+				PublishContext:    map[string]string{PublishInfoDevicePath: "/dev/sdb"},
 			},
 			actions: []testingexec.FakeCommandAction{
 				makeFakeCmd(
@@ -326,6 +329,12 @@ func TestNodeStageVolume(t *testing.T) {
 				),
 			},
 			expErrCode: codes.OK,
+			expMount: &mount.MountPoint{
+				Device: "/dev/sdb",
+				Path:   defaultStagingPath,
+				Type:   "ext2",
+				Opts:   []string{"defaults"},
+			},
 		},
 		{
 			name: "Valid request (xfs)",
@@ -333,7 +342,7 @@ func TestNodeStageVolume(t *testing.T) {
 				VolumeId:          volumeID,
 				StagingTargetPath: defaultStagingPath,
 				VolumeCapability:  stdVolCap[1],
-				PublishContext:    map[string]string{PublishInfoDevicePath: "/dev"},
+				PublishContext:    map[string]string{PublishInfoDevicePath: "/dev/sdb"},
 			},
 			actions: []testingexec.FakeCommandAction{
 				makeFakeCmd(
@@ -388,6 +397,12 @@ func TestNodeStageVolume(t *testing.T) {
 				),
 			},
 			expErrCode: codes.OK,
+			expMount: &mount.MountPoint{
+				Device: "/dev/sdb",
+				Path:   defaultStagingPath,
+				Type:   "xfs",
+				Opts:   []string{"nouuid", "defaults"},
+			},
 		},
 		{
 			name: "Empty volume ID",
@@ -395,7 +410,7 @@ func TestNodeStageVolume(t *testing.T) {
 				VolumeId:          "",
 				StagingTargetPath: defaultStagingPath,
 				VolumeCapability:  stdVolCap[0],
-				PublishContext:    map[string]string{PublishInfoDevicePath: "/dev"},
+				PublishContext:    map[string]string{PublishInfoDevicePath: "/dev/sdb"},
 			},
 			expErrCode: codes.InvalidArgument,
 		},
@@ -405,7 +420,7 @@ func TestNodeStageVolume(t *testing.T) {
 				VolumeId:          volumeID,
 				StagingTargetPath: "",
 				VolumeCapability:  stdVolCap[0],
-				PublishContext:    map[string]string{PublishInfoDevicePath: "/dev"},
+				PublishContext:    map[string]string{PublishInfoDevicePath: "/dev/sdb"},
 			},
 			expErrCode: codes.InvalidArgument,
 		},
@@ -415,7 +430,7 @@ func TestNodeStageVolume(t *testing.T) {
 				VolumeId:          volumeID,
 				StagingTargetPath: defaultTargetPath,
 				VolumeCapability:  nil,
-				PublishContext:    map[string]string{PublishInfoDevicePath: "/dev"},
+				PublishContext:    map[string]string{PublishInfoDevicePath: "/dev/sdb"},
 			},
 			expErrCode: codes.InvalidArgument,
 		},
@@ -425,7 +440,7 @@ func TestNodeStageVolume(t *testing.T) {
 				VolumeId:          volumeID,
 				StagingTargetPath: defaultTargetPath,
 				VolumeCapability:  stdVolCapNotSupported[0],
-				PublishContext:    map[string]string{PublishInfoDevicePath: "/dev"},
+				PublishContext:    map[string]string{PublishInfoDevicePath: "/dev/sdb"},
 			},
 			expErrCode: codes.InvalidArgument,
 		},
@@ -467,6 +482,20 @@ func TestNodeStageVolume(t *testing.T) {
 		}
 		if tc.expErrCode != codes.OK {
 			t.Fatalf("Expected error: %v, got no error", tc.expErrCode)
+		}
+		if tc.expMount != nil {
+			mounter := icDriver.ns.Mounter.(*mountmanager.FakeNodeMounterWithCustomActions).SafeFormatAndMount.Interface.(*mount.FakeMounter)
+			found := false
+			for _, mount := range mounter.MountPoints {
+				if mount.Device == tc.expMount.Device {
+					found = true
+					assert.Equal(t, tc.expMount, &mount)
+					break
+				}
+			}
+			if !found {
+				t.Errorf("Mounted device %s not found. All mount points: %+v", tc.expMount.Device, mounter.MountPoints)
+			}
 		}
 	}
 }
