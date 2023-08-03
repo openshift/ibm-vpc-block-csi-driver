@@ -52,6 +52,14 @@ var (
 				Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
 			},
 		},
+		{
+			AccessType: &csi.VolumeCapability_Mount{
+				Mount: &csi.VolumeCapability_MountVolume{FsType: "xfs"},
+			},
+			AccessMode: &csi.VolumeCapability_AccessMode{
+				Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
+			},
+		},
 	}
 	stdVolCapNotSupported = []*csi.VolumeCapability{
 		{

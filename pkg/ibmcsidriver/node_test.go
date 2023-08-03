@@ -328,6 +328,68 @@ func TestNodeStageVolume(t *testing.T) {
 			expErrCode: codes.OK,
 		},
 		{
+			name: "Valid request (xfs)",
+			req: &csi.NodeStageVolumeRequest{
+				VolumeId:          volumeID,
+				StagingTargetPath: defaultStagingPath,
+				VolumeCapability:  stdVolCap[1],
+				PublishContext:    map[string]string{PublishInfoDevicePath: "/dev"},
+			},
+			actions: []testingexec.FakeCommandAction{
+				makeFakeCmd(
+					&testingexec.FakeCmd{
+						CombinedOutputScript: []testingexec.FakeAction{
+							func() ([]byte, []byte, error) {
+								return []byte("DEVNAME=/dev/sdb\nTYPE=ext4"), nil, nil
+							},
+						},
+					},
+					"blkid",
+				),
+				makeFakeCmd(
+					&testingexec.FakeCmd{
+						CombinedOutputScript: []testingexec.FakeAction{
+							func() ([]byte, []byte, error) {
+								return []byte("1"), nil, nil
+							},
+						},
+					},
+					"mkfs.xfs",
+				),
+				makeFakeCmd(
+					&testingexec.FakeCmd{
+						CombinedOutputScript: []testingexec.FakeAction{
+							func() ([]byte, []byte, error) {
+								return []byte("1"), nil, nil
+							},
+						},
+					},
+					"blockdev",
+				),
+				makeFakeCmd(
+					&testingexec.FakeCmd{
+						CombinedOutputScript: []testingexec.FakeAction{
+							func() ([]byte, []byte, error) {
+								return []byte("DEVNAME=/dev/sdb\nTYPE=xfs"), nil, nil
+							},
+						},
+					},
+					"blkid",
+				),
+				makeFakeCmd(
+					&testingexec.FakeCmd{
+						CombinedOutputScript: []testingexec.FakeAction{
+							func() ([]byte, []byte, error) {
+								return []byte("geom.bsize=1\ngeom.datablocks=1"), nil, nil
+							},
+						},
+					},
+					"xfs_io",
+				),
+			},
+			expErrCode: codes.OK,
+		},
+		{
 			name: "Empty volume ID",
 			req: &csi.NodeStageVolumeRequest{
 				VolumeId:          "",
