@@ -25,7 +25,8 @@ import (
 )
 
 // Provider describes the contract that is implemented by an internal provider implementation
-//go:generate counterfeiter -o fakes/provider.go --fake-name Provider . Provider
+//
+//go:generate counterfeiter -o fakes/provider.go  --fake-name Provider . Provider
 type Provider interface {
 	// OpenSession begins and initialises a new provider session.
 	// The implementation can choose to verify the credentials and return an error if they are invalid.
@@ -35,12 +36,10 @@ type Provider interface {
 
 	// Returns a configured ContextCredentialsFactory for this provider
 	ContextCredentialsFactory(datacenter *string) (ContextCredentialsFactory, error)
-
-	// UpdateAPIKey updates api key in the provider
-	UpdateAPIKey(interface{}, *zap.Logger) error
 }
 
 // ContextCredentialsFactory is a factory which can generate ContextCredentials instances
+//
 //go:generate counterfeiter -o fakes/context_credentials_factory.go --fake-name ContextCredentialsFactory . ContextCredentialsFactory
 type ContextCredentialsFactory interface {
 	// ForIaaSAPIKey returns a config using an explicit API key for an IaaS user account
@@ -51,7 +50,4 @@ type ContextCredentialsFactory interface {
 
 	// ForIAMAccessToken returns a config derived from an IAM API key (if applicable)
 	ForIAMAccessToken(apiKey string, logger *zap.Logger) (provider.ContextCredentials, error)
-
-	// UpdateAPIKey updates api key in the credentials
-	UpdateAPIKey(apiKey string, logger *zap.Logger) error
 }
