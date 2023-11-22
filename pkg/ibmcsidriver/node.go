@@ -19,15 +19,15 @@ package ibmcsidriver
 
 import (
 	"fmt"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"k8s.io/klog/v2"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 
 	"os/exec"
 	"time"
@@ -78,10 +78,7 @@ func (su *VolumeStatUtils) FSInfo(path string) (int64, int64, int64, int64, int6
 
 const (
 	// DefaultVolumesPerNode is the default number of volumes attachable to a node
-	DefaultVolumesPerNode = 4
-
-	// MaxVolumesPerNode is the maximum number of volumes attachable to a node
-	MaxVolumesPerNode = 12
+	DefaultVolumesPerNode = 12
 
 	// MinimumCoresWithMaximumAttachableVolumes is the minimum cores required to have maximum number of attachable volumes, currently 4 as per the docs.
 	MinimumCoresWithMaximumAttachableVolumes = 4
@@ -110,7 +107,7 @@ func (csiNS *CSINodeServer) NodePublishVolume(ctx context.Context, req *csi.Node
 	controlleRequestID := publishContext[PublishInfoRequestID]
 	ctxLogger, requestID := utils.GetContextLoggerWithRequestID(ctx, false, &controlleRequestID)
 	ctxLogger.Info("CSINodeServer-NodePublishVolume...", zap.Reflect("Request", *req))
-	metrics.UpdateDurationFromStart(ctxLogger, "NodePublishVolume", time.Now())
+	defer metrics.UpdateDurationFromStart(ctxLogger, "NodePublishVolume", time.Now())
 	csiNS.mux.Lock()
 	defer csiNS.mux.Unlock()
 
@@ -184,7 +181,7 @@ func (csiNS *CSINodeServer) NodePublishVolume(ctx context.Context, req *csi.Node
 func (csiNS *CSINodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	ctxLogger, requestID := utils.GetContextLogger(ctx, false)
 	ctxLogger.Info("CSINodeServer-NodeUnpublishVolume...", zap.Reflect("Request", *req))
-	metrics.UpdateDurationFromStart(ctxLogger, "NodeUnpublishVolume", time.Now())
+	defer metrics.UpdateDurationFromStart(ctxLogger, "NodeUnpublishVolume", time.Now())
 	csiNS.mux.Lock()
 	defer csiNS.mux.Unlock()
 	// Validate Arguments
@@ -214,7 +211,7 @@ func (csiNS *CSINodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeSt
 	controlleRequestID := publishContext[PublishInfoRequestID]
 	ctxLogger, requestID := utils.GetContextLoggerWithRequestID(ctx, false, &controlleRequestID)
 	ctxLogger.Info("CSINodeServer-NodeStageVolume...", zap.Reflect("Request", *req))
-	metrics.UpdateDurationFromStart(ctxLogger, "NodeStageVolume", time.Now())
+	defer metrics.UpdateDurationFromStart(ctxLogger, "NodeStageVolume", time.Now())
 
 	csiNS.mux.Lock()
 	defer csiNS.mux.Unlock()
@@ -314,7 +311,7 @@ func (csiNS *CSINodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeSt
 func (csiNS *CSINodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	ctxLogger, requestID := utils.GetContextLogger(ctx, false)
 	ctxLogger.Info("CSINodeServer-NodeUnstageVolume ... ", zap.Reflect("Request", *req))
-	metrics.UpdateDurationFromStart(ctxLogger, "NodeUnstageVolume", time.Now())
+	defer metrics.UpdateDurationFromStart(ctxLogger, "NodeUnstageVolume", time.Now())
 	csiNS.mux.Lock()
 	defer csiNS.mux.Unlock()
 
@@ -379,12 +376,20 @@ func (csiNS *CSINodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInf
 		},
 	}
 
-	// maxVolumesPerNode is the maximum number of volumes attachable to a node; default is 4
-	cores := runtime.NumCPU()
-	if cores >= MinimumCoresWithMaximumAttachableVolumes {
-		maxVolumesPerNode = MaxVolumesPerNode
+	// If environment variable is set, use this value as maxVolumesPerNode
+	value, ok := os.LookupEnv("VOLUME_ATTACHMENT_LIMIT")
+	if !ok {
+		ctxLogger.Warn("VOLUME_ATTACHMENT_LIMIT is not provided. Setting the default value:", zap.Reflect("MaxVolumesPerNode", maxVolumesPerNode))
+	} else {
+		volumeAttachmentLimit, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			ctxLogger.Warn("Invalid value for VOLUME_ATTACHMENT_LIMIT. Setting the default value:", zap.Reflect("MaxVolumesPerNode", maxVolumesPerNode))
+		} else {
+			maxVolumesPerNode = volumeAttachmentLimit
+		}
 	}
-	ctxLogger.Info("Number of cores of the node and attachable volume limits.", zap.Reflect("Cores", cores), zap.Reflect("AttachableVolumeLimits", maxVolumesPerNode))
+
+	ctxLogger.Info("Attachable volume limits", zap.Reflect("AttachableVolumeLimits", maxVolumesPerNode))
 
 	resp := &csi.NodeGetInfoResponse{
 		NodeId:             csiNS.Metadata.GetWorkerID(),
@@ -400,7 +405,7 @@ func (csiNS *CSINodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.Nod
 	var resp *csi.NodeGetVolumeStatsResponse
 	ctxLogger, requestID := utils.GetContextLogger(ctx, false)
 	ctxLogger.Info("CSINodeServer-NodeGetVolumeStats... ", zap.Reflect("Request", *req)) //nolint:staticcheck
-	metrics.UpdateDurationFromStart(ctxLogger, "NodeGetVolumeStats", time.Now())
+	defer metrics.UpdateDurationFromStart(ctxLogger, "NodeGetVolumeStats", time.Now())
 	if req == nil || req.VolumeId == "" { //nolint:staticcheck
 		return nil, commonError.GetCSIError(ctxLogger, commonError.EmptyVolumeID, requestID, nil)
 	}
