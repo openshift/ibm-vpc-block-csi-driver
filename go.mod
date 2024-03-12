@@ -17,7 +17,7 @@ require (
 	golang.org/x/net v0.17.0
 	golang.org/x/sys v0.13.0
 	google.golang.org/grpc v1.56.0
-	google.golang.org/protobuf v1.30.0
+	google.golang.org/protobuf v1.33.0
 	k8s.io/klog/v2 v2.80.1
 	k8s.io/kubernetes v1.26.6
 	k8s.io/mount-utils v0.26.1
@@ -53,7 +53,7 @@ require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
