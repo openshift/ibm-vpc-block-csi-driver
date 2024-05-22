@@ -1,6 +1,6 @@
 module github.com/kubernetes-sigs/ibm-vpc-block-csi-driver
 
-go 1.20
+go 1.21
 
 require (
 	github.com/IBM/ibm-csi-common v1.1.7
