@@ -15,7 +15,7 @@ require (
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/zap v1.20.0
 	golang.org/x/net v0.17.0
-	golang.org/x/sys v0.13.0
+	golang.org/x/sys v0.20.0
 	google.golang.org/grpc v1.56.0
 	google.golang.org/protobuf v1.30.0
 	k8s.io/klog/v2 v2.80.1
@@ -58,7 +58,7 @@ require (
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
-	github.com/hashicorp/go-retryablehttp v0.7.0 // indirect
+	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
