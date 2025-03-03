@@ -33,8 +33,8 @@ import (
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/stretchr/testify/assert"
 
-	cloudProvider "github.com/IBM/ibm-csi-common/pkg/ibmcloudprovider"
 	"github.com/IBM/ibmcloud-volume-interface/lib/provider/fake"
+	cloudProvider "github.com/IBM/ibmcloud-volume-vpc/pkg/ibmcloudprovider"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -1000,7 +1000,7 @@ func TestCreateSnapshot(t *testing.T) {
 			},
 			expResponse: &csi.CreateSnapshotResponse{
 				Snapshot: &csi.Snapshot{
-					SnapshotId:     "snap-id",
+					SnapshotId:     "crn://accountid:vpc snapshot service/snapshotid", //"snap-id",
 					SourceVolumeId: "testVolumeId",
 					SizeBytes:      stdCapRange.RequiredBytes,
 					ReadyToUse:     false,
@@ -1009,7 +1009,7 @@ func TestCreateSnapshot(t *testing.T) {
 			},
 			expErrCode: codes.OK,
 			libSnapshotResponse: &provider.Snapshot{
-				SnapshotID:           "snap-id",
+				SnapshotCRN:          "crn://accountid:vpc snapshot service/snapshotid",
 				VolumeID:             "testVolumeId",
 				SnapshotSize:         stdCapRange.RequiredBytes,
 				ReadyToUse:           false,
@@ -1060,7 +1060,7 @@ func TestCreateSnapshot(t *testing.T) {
 			},
 			expResponse: &csi.CreateSnapshotResponse{
 				Snapshot: &csi.Snapshot{
-					SnapshotId:     "snap-id",
+					SnapshotId:     "crn://accountid:vpc snapshot service/snapshotid",
 					SourceVolumeId: "testVolumeId",
 					SizeBytes:      stdCapRange.RequiredBytes,
 					ReadyToUse:     false,
@@ -1069,7 +1069,7 @@ func TestCreateSnapshot(t *testing.T) {
 			},
 			expErrCode: codes.OK,
 			libSnapshotByNameResponse: &provider.Snapshot{
-				SnapshotID:           "snap-id",
+				SnapshotCRN:          "crn://accountid:vpc snapshot service/snapshotid",
 				VolumeID:             "testVolumeId",
 				SnapshotSize:         stdCapRange.RequiredBytes,
 				ReadyToUse:           false,
@@ -1471,6 +1471,14 @@ func TestListSnapshots(t *testing.T) {
 			snapshotID:        "snapshot-id",
 			expectedEntries:   0,
 			libGetSnapshotErr: true,
+			expErrCode:        codes.OK,
+			libSnapshotError:  nil,
+		},
+		{
+			name:              "List snapshot with snapshotID as CRN",
+			snapshotID:        "crn:v1:staging:public:is:us-south:a/77f2bcedd73fe82c1c::snapshot:r134-1ad4-4852-b24a-b65050e42429",
+			expectedEntries:   1,
+			libGetSnapshotErr: false,
 			expErrCode:        codes.OK,
 			libSnapshotError:  nil,
 		},

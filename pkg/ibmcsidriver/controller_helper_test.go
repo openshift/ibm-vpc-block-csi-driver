@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"testing"
 
-	cloudProvider "github.com/IBM/ibm-csi-common/pkg/ibmcloudprovider"
 	"github.com/IBM/ibm-csi-common/pkg/utils"
 	"github.com/IBM/ibmcloud-volume-interface/config"
 	"github.com/IBM/ibmcloud-volume-interface/lib/provider"
+	cloudProvider "github.com/IBM/ibmcloud-volume-vpc/pkg/ibmcloudprovider"
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/stretchr/testify/assert"
 )
@@ -40,18 +40,35 @@ func TestGetRequestedCapacity(t *testing.T) {
 	testCases := []struct {
 		testCaseName  string
 		capRange      *csi.CapacityRange
+		profileName   string
 		expectedValue int64
 		expectedError error
 	}{
 		{
+			testCaseName:  "Check minimum size supported by volume provider in case of nil passed as input for sdp profile",
+			capRange:      nil,
+			profileName:   "sdp",
+			expectedValue: MinimumSDPVolumeSizeInBytes,
+			expectedError: nil,
+		},
+		{
+			testCaseName:  "Check minimum size supported by volume provider in case of lower value passed as input for sdp profile",
+			capRange:      &csi.CapacityRange{RequiredBytes: 1024},
+			profileName:   "sdp",
+			expectedValue: MinimumSDPVolumeSizeInBytes,
+			expectedError: nil,
+		},
+		{
 			testCaseName:  "Check minimum size supported by volume provider in case of nil passed as input",
 			capRange:      &csi.CapacityRange{},
+			profileName:   "custom",
 			expectedValue: utils.MinimumVolumeSizeInBytes,
 			expectedError: nil,
 		},
 		{
 			testCaseName:  "Capacity range is nil",
 			capRange:      nil,
+			profileName:   "general-purpose",
 			expectedValue: utils.MinimumVolumeSizeInBytes,
 			expectedError: nil,
 		},
@@ -59,6 +76,7 @@ func TestGetRequestedCapacity(t *testing.T) {
 			testCaseName: "Check minimum size supported by volume provider",
 			capRange: &csi.CapacityRange{RequiredBytes: 1024,
 				LimitBytes: utils.MinimumVolumeSizeInBytes},
+			profileName:   "custom",
 			expectedValue: utils.MinimumVolumeSizeInBytes,
 			expectedError: nil,
 		},
@@ -66,6 +84,7 @@ func TestGetRequestedCapacity(t *testing.T) {
 			testCaseName: "Check size passed as actual value",
 			capRange: &csi.CapacityRange{RequiredBytes: 11811160064,
 				LimitBytes: utils.MinimumVolumeSizeInBytes + utils.MinimumVolumeSizeInBytes}, // MinimumVolumeSizeInBytes->10737418240
+			profileName:   "custom",
 			expectedValue: 11811160064,
 			expectedError: nil,
 		},
@@ -73,6 +92,7 @@ func TestGetRequestedCapacity(t *testing.T) {
 			testCaseName: "Expected error check-success",
 			capRange: &csi.CapacityRange{RequiredBytes: 1073741824 * 30,
 				LimitBytes: utils.MinimumVolumeSizeInBytes}, // MinimumVolumeSizeInBytes->10737418240
+			profileName:   "custom",
 			expectedValue: 0,
 			expectedError: fmt.Errorf("limit bytes %v is less than required bytes %v", utils.MinimumVolumeSizeInBytes, 1073741824*30),
 		},
@@ -80,6 +100,7 @@ func TestGetRequestedCapacity(t *testing.T) {
 			testCaseName: "Expected error check against limit byte-success",
 			capRange: &csi.CapacityRange{RequiredBytes: utils.MinimumVolumeSizeInBytes - 100,
 				LimitBytes: 10737418230}, // MinimumVolumeSizeInBytes->10737418240
+			profileName:   "custom",
 			expectedValue: 0,
 			expectedError: fmt.Errorf("limit bytes %v is less than minimum volume size: %v", 10737418230, utils.MinimumVolumeSizeInBytes),
 		},
@@ -87,7 +108,7 @@ func TestGetRequestedCapacity(t *testing.T) {
 
 	for _, testcase := range testCases {
 		t.Run(testcase.testCaseName, func(t *testing.T) {
-			sizeCap, err := getRequestedCapacity(testcase.capRange)
+			sizeCap, err := getRequestedCapacity(testcase.capRange, testcase.profileName)
 			if testcase.expectedError != nil {
 				assert.Equal(t, err, testcase.expectedError)
 			} else {
@@ -177,9 +198,8 @@ func TestGetVolumeParameters(t *testing.T) {
 			},
 			expectedVolume: &provider.Volume{Name: &volumeName,
 				Capacity: &volumeSize,
-				VPCVolume: provider.VPCVolume{VPCBlockVolume: provider.VPCBlockVolume{
-					Tags: []string{createdByIBM},
-				},
+				VPCVolume: provider.VPCVolume{
+					Tags:          []string{createdByIBM},
 					Profile:       &provider.Profile{Name: "general-purpose"},
 					ResourceGroup: &provider.ResourceGroup{ID: "myresourcegroups"},
 				},
@@ -312,9 +332,8 @@ func TestGetVolumeParameters(t *testing.T) {
 			},
 			expectedVolume: &provider.Volume{Name: &volumeName,
 				Capacity: &volumeSize,
-				VPCVolume: provider.VPCVolume{VPCBlockVolume: provider.VPCBlockVolume{
-					Tags: []string{createdByIBM},
-				},
+				VPCVolume: provider.VPCVolume{
+					Tags:          []string{createdByIBM},
 					Profile:       &provider.Profile{Name: "general-purpose"},
 					ResourceGroup: &provider.ResourceGroup{ID: "myresourcegroups"},
 				},
@@ -363,55 +382,11 @@ func TestGetVolumeParameters(t *testing.T) {
 	}
 }
 
-func TestIsValidCapacityIOPS4CustomClass(t *testing.T) {
-	testCases := []struct {
-		testCaseName   string
-		requestSize    int
-		requestIops    int
-		expectedStatus bool
-		expectedError  error
-	}{
-		{
-			testCaseName:   "Valid capacity IOPS",
-			requestSize:    20,
-			requestIops:    110,
-			expectedStatus: true,
-			expectedError:  nil,
-		},
-		{
-			testCaseName:   "Invalid capacity",
-			requestSize:    5,
-			requestIops:    110,
-			expectedStatus: false,
-			expectedError:  fmt.Errorf("invalid PVC size for custom class: <%v>. Should be in range [%d - %d]GiB", 5, utils.MinimumVolumeDiskSizeInGb, utils.MaximumVolumeDiskSizeInGb),
-		},
-		{
-			testCaseName:   "Invalid IOPS",
-			requestSize:    20,
-			requestIops:    5,
-			expectedStatus: false,
-			expectedError:  fmt.Errorf("invalid IOPS: <%v> for capacity: <%vGiB>. Should be in range [%d - %d]", 5, 20, customCapacityIopsRanges[0].minIops, customCapacityIopsRanges[0].maxIops),
-		},
-	}
-
-	for _, testcase := range testCases {
-		t.Run(testcase.testCaseName, func(t *testing.T) {
-			isValid, err := isValidCapacityIOPS4CustomClass(testcase.requestSize, testcase.requestIops)
-			if testcase.expectedError != nil {
-				assert.Equal(t, err, testcase.expectedError)
-			} else {
-				assert.Equal(t, testcase.expectedStatus, isValid)
-			}
-		})
-	}
-}
-
 func TestOverrideParams(t *testing.T) {
 	volumeName := "volName"
 	volumeSize := 11 // in Gib which is equal to 11811160064 byte
 	noIops := ""
 	iops110 := "110"
-	secretInvalidIops := "aa5" // For 10GB
 	testCases := []struct {
 		testCaseName   string
 		request        *csi.CreateVolumeRequest
@@ -444,9 +419,8 @@ func TestOverrideParams(t *testing.T) {
 			},
 			expectedVolume: &provider.Volume{Name: &volumeName,
 				Capacity: &volumeSize,
-				VPCVolume: provider.VPCVolume{VPCBlockVolume: provider.VPCBlockVolume{
-					Tags: []string{createdByIBM},
-				},
+				VPCVolume: provider.VPCVolume{
+					Tags:          []string{createdByIBM},
 					Profile:       &provider.Profile{Name: "general-purpose"},
 					ResourceGroup: &provider.ResourceGroup{ID: "secret-rg"},
 				},
@@ -530,9 +504,8 @@ func TestOverrideParams(t *testing.T) {
 			},
 			expectedVolume: &provider.Volume{Name: &volumeName,
 				Capacity: &volumeSize,
-				VPCVolume: provider.VPCVolume{VPCBlockVolume: provider.VPCBlockVolume{
-					Tags: []string{createdByIBM},
-				},
+				VPCVolume: provider.VPCVolume{
+					Tags:          []string{createdByIBM},
 					Profile:       &provider.Profile{Name: "custom"},
 					ResourceGroup: &provider.ResourceGroup{ID: "myresourcegroups"},
 				},
@@ -541,29 +514,6 @@ func TestOverrideParams(t *testing.T) {
 			},
 			expectedStatus: true,
 			expectedError:  nil,
-		},
-		{
-			testCaseName: "Secret invalid IOPS for custom class",
-			request: &csi.CreateVolumeRequest{Name: volumeName, CapacityRange: &csi.CapacityRange{RequiredBytes: 11811160064, LimitBytes: utils.MinimumVolumeSizeInBytes + utils.MinimumVolumeSizeInBytes},
-				Parameters: map[string]string{Profile: "custom",
-					Zone:          "testzone",
-					Region:        "us-south-test",
-					Tag:           "test",
-					ResourceGroup: "myresourcegroups",
-					Encrypted:     "false",
-					EncryptionKey: "123",
-					IOPS:          noIops,
-				},
-				Secrets: map[string]string{
-					IOPS: secretInvalidIops,
-				},
-			},
-			expectedVolume: &provider.Volume{Name: &volumeName,
-				Capacity:  &volumeSize,
-				VPCVolume: provider.VPCVolume{Profile: &provider.Profile{Name: "custom"}},
-			},
-			expectedStatus: false,
-			expectedError:  fmt.Errorf("%v:<%v> invalid value", IOPS, secretInvalidIops),
 		},
 		{
 			testCaseName: "Nil volume as input/output",
@@ -650,9 +600,8 @@ func TestCreateCSIVolumeResponse(t *testing.T) {
 		{
 			testCaseName: "Valid volume response",
 			requestVol: provider.Volume{VolumeID: volumeID,
-				VPCVolume: provider.VPCVolume{VPCBlockVolume: provider.VPCBlockVolume{
-					Tags: []string{createdByIBM},
-				},
+				VPCVolume: provider.VPCVolume{
+					Tags:          []string{createdByIBM},
 					Profile:       &provider.Profile{Name: "general-purpose"},
 					ResourceGroup: &provider.ResourceGroup{ID: "myresourcegroups"},
 				},
@@ -682,9 +631,8 @@ func TestCreateCSIVolumeResponse(t *testing.T) {
 		{
 			testCaseName: "Valid volume response with region in vol request empty",
 			requestVol: provider.Volume{VolumeID: volumeID,
-				VPCVolume: provider.VPCVolume{VPCBlockVolume: provider.VPCBlockVolume{
-					Tags: []string{createdByIBM},
-				},
+				VPCVolume: provider.VPCVolume{
+					Tags:          []string{createdByIBM},
 					Profile:       &provider.Profile{Name: "general-purpose"},
 					ResourceGroup: &provider.ResourceGroup{ID: "myresourcegroups"},
 				},

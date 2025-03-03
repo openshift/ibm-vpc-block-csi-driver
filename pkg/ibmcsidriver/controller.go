@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kubernetes Authors.
+Copyright 2024 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import (
 	"strings"
 	"time"
 
-	cloudProvider "github.com/IBM/ibm-csi-common/pkg/ibmcloudprovider"
 	commonError "github.com/IBM/ibm-csi-common/pkg/messages"
 	"github.com/IBM/ibm-csi-common/pkg/metrics"
 	"github.com/IBM/ibm-csi-common/pkg/utils"
@@ -30,6 +29,7 @@ import (
 	providerError "github.com/IBM/ibmcloud-volume-interface/lib/utils"
 	utilReasonCode "github.com/IBM/ibmcloud-volume-interface/lib/utils/reasoncode"
 	userError "github.com/IBM/ibmcloud-volume-vpc/common/messages"
+	cloudProvider "github.com/IBM/ibmcloud-volume-vpc/pkg/ibmcloudprovider"
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 
 	"go.uber.org/zap"
@@ -126,7 +126,14 @@ func (csiCS *CSIControllerServer) CreateVolume(ctx context.Context, req *csi.Cre
 		if sourceSnapshot == nil {
 			return nil, commonError.GetCSIError(ctxLogger, commonError.VolumeInvalidArguments, requestID, nil)
 		}
-		requestedVolume.SnapshotID = sourceSnapshot.GetSnapshotId()
+		snapshotIdentifier := sourceSnapshot.GetSnapshotId()
+		// Remove all whitespaces and search crn: string at 0th position
+		// to finalise that user provided crn or not
+		if strings.Index(strings.ReplaceAll(snapshotIdentifier, " ", ""), "crn:") == 0 {
+			requestedVolume.SnapshotCRN = snapshotIdentifier
+		} else {
+			requestedVolume.SnapshotID = snapshotIdentifier
+		}
 	}
 
 	existingVol, err := checkIfVolumeExists(session, *requestedVolume, ctxLogger)
@@ -520,7 +527,8 @@ func (csiCS *CSIControllerServer) DeleteSnapshot(ctx context.Context, req *csi.D
 	}
 
 	snapshot := &provider.Snapshot{}
-	snapshot.SnapshotID = snapshotID
+	snapshot.SnapshotID, _ = getSnapshotAndAccountIDsFromCRN(snapshotID)
+
 	err = session.DeleteSnapshot(snapshot)
 	if err != nil {
 		if providerError.RetrivalFailed == providerError.GetErrorType(err) {
@@ -553,24 +561,39 @@ func (csiCS *CSIControllerServer) ListSnapshots(ctx context.Context, req *csi.Li
 
 	entries := []*csi.ListSnapshotsResponse_Entry{}
 	snapshotID := req.GetSnapshotId()
-	if len(snapshotID) != 0 {
-		snapshot, err := session.GetSnapshot(snapshotID)
-		if snapshot == nil {
-			return &csi.ListSnapshotsResponse{}, nil
+	snapID, snapshotAccountID := getSnapshotAndAccountIDsFromCRN(snapshotID)
+	if len(snapID) != 0 {
+		if csiCS.Driver.accountID == snapshotAccountID { // in case snapshotID's account and cluster account ID is same
+			snapshot, err := session.GetSnapshot(snapID)
+			if snapshot == nil {
+				return &csi.ListSnapshotsResponse{}, nil
+			}
+			if providerError.RetrivalFailed == providerError.GetErrorType(err) {
+				ctxLogger.Info("Snapshot not found. Returning success ...")
+				return &csi.ListSnapshotsResponse{}, nil
+			}
+			return &csi.ListSnapshotsResponse{
+				Entries: append(entries, &csi.ListSnapshotsResponse_Entry{
+					Snapshot: createCSISnapshotResponse(*snapshot).Snapshot,
+				}),
+				NextToken: "",
+			}, nil
+		} else { // In case of cross account volume snapshot
+			return &csi.ListSnapshotsResponse{
+				Entries: append(entries, &csi.ListSnapshotsResponse_Entry{
+					Snapshot: &csi.Snapshot{
+						SnapshotId:     snapshotID,
+						SourceVolumeId: "",
+						ReadyToUse:     true,
+					},
+				}),
+				NextToken: "",
+			}, nil
 		}
-		if providerError.RetrivalFailed == providerError.GetErrorType(err) {
-			ctxLogger.Info("Snapshot not found. Returning success ...")
-			return &csi.ListSnapshotsResponse{}, nil
-		}
-		return &csi.ListSnapshotsResponse{
-			Entries: append(entries, &csi.ListSnapshotsResponse_Entry{
-				Snapshot: createCSISnapshotResponse(*snapshot).Snapshot,
-			}),
-			NextToken: "",
-		}, nil
+
 	}
 
-	maxEntries := int(req.MaxEntries)
+	maxEntries := int(req.GetMaxEntries())
 	tags := map[string]string{}
 	sourceVolumeID := req.GetSourceVolumeId()
 	if len(sourceVolumeID) != 0 {
@@ -663,4 +686,10 @@ func (csiCS *CSIControllerServer) ControllerExpandVolume(ctx context.Context, re
 func (csiCS *CSIControllerServer) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
 	ctxLogger, requestID := utils.GetContextLogger(ctx, false)
 	return nil, commonError.GetCSIError(ctxLogger, commonError.MethodUnimplemented, requestID, nil, "ControllerGetVolume")
+}
+
+// ControllerModifyVolume ...
+func (csiCS *CSIControllerServer) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest) (*csi.ControllerModifyVolumeResponse, error) {
+	ctxLogger, requestID := utils.GetContextLogger(ctx, false)
+	return nil, commonError.GetCSIError(ctxLogger, commonError.MethodUnimplemented, requestID, nil, "ControllerModifyVolume")
 }

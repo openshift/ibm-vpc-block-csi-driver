@@ -47,6 +47,7 @@ func (vs *VolumeService) GetVolume(volumeID string, ctxLogger *zap.Logger) (*mod
 
 	req := request.PathParameter(volumeIDParam, volumeID)
 	_, err := req.JSONSuccess(&volume).JSONError(&apiErr).Invoke()
+
 	if err != nil {
 		return nil, err
 	}

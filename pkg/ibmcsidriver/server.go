@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kubernetes Authors.
+Copyright 2024 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -116,6 +116,16 @@ func (s *nonBlockingGRPCServer) Setup(endpoint string, ids csi.IdentityServer, c
 		msg := "Failed to listen GRPC Server"
 		s.logger.Error(msg, zap.Reflect("Error", err))
 		return nil, errors.New(msg)
+	}
+
+	// In case of nodeSerer container, setup desired csi socket permissions and user/group.
+	// This is required for running `livenessprobe` container as non-root user/group
+	if os.Getenv("IS_NODE_SERVER") == "true" {
+		fileops := &opsSocketPermission{}
+		if err := setupSidecar(addr, fileops, s.logger); err != nil {
+			s.logger.Error("setupSidecar failed.", zap.Error(err))
+			return nil, err
+		}
 	}
 
 	server := grpc.NewServer(opts...)

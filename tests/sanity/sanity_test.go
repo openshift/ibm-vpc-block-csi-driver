@@ -41,8 +41,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	cloudProvider "github.com/IBM/ibm-csi-common/pkg/ibmcloudprovider"
 	nodeMetadata "github.com/IBM/ibm-csi-common/pkg/metadata"
+	cloudProvider "github.com/IBM/ibmcloud-volume-vpc/pkg/ibmcloudprovider"
 
 	mountManager "github.com/IBM/ibm-csi-common/pkg/mountmanager"
 
@@ -312,11 +312,11 @@ func (c *fakeProviderSession) CreateVolume(volumeRequest provider.Volume) (*prov
 	}
 	fakeVolume := &fakeVolume{
 		Volume: &provider.Volume{
-			VolumeID:   fmt.Sprintf("vol-uuid-test-vol-%s", uuid.New().String()[:10]),
-			Name:       volumeRequest.Name,
-			Region:     volumeRequest.Region,
-			Capacity:   volumeRequest.Capacity,
-			SnapshotID: volumeRequest.SnapshotID,
+			VolumeID: fmt.Sprintf("vol-uuid-test-vol-%s", uuid.New().String()[:10]),
+			Name:     volumeRequest.Name,
+			Region:   volumeRequest.Region,
+			Capacity: volumeRequest.Capacity,
+			Snapshot: provider.Snapshot{SnapshotID: volumeRequest.SnapshotID},
 		},
 	}
 

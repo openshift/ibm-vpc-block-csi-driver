@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kubernetes Authors.
+Copyright 2024 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,11 +20,11 @@ package ibmcsidriver
 import (
 	"fmt"
 
-	cloudProvider "github.com/IBM/ibm-csi-common/pkg/ibmcloudprovider"
 	commonError "github.com/IBM/ibm-csi-common/pkg/messages"
 	nodeMetadata "github.com/IBM/ibm-csi-common/pkg/metadata"
 	mountManager "github.com/IBM/ibm-csi-common/pkg/mountmanager"
 	"github.com/IBM/ibm-csi-common/pkg/utils"
+	cloudProvider "github.com/IBM/ibmcloud-volume-vpc/pkg/ibmcloudprovider"
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
 	"go.uber.org/zap"
 )
@@ -35,6 +35,7 @@ type IBMCSIDriver struct {
 	vendorVersion string
 	logger        *zap.Logger
 	region        string
+	accountID     string
 	ids           *CSIIdentityServer
 	ns            *CSINodeServer
 	cs            *CSIControllerServer
@@ -111,6 +112,7 @@ func (icDriver *IBMCSIDriver) SetupIBMCSIDriver(provider cloudProvider.CloudProv
 		return fmt.Errorf("Controller_Helper: Failed to initialize node metadata: error: %v", err)
 	}
 	icDriver.region = regionMetadata.GetRegion()
+	icDriver.accountID = regionMetadata.GetAccountID()
 
 	return nil
 }

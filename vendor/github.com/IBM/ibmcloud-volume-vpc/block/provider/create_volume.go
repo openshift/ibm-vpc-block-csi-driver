@@ -30,6 +30,7 @@ import (
 
 const (
 	customProfile = "custom"
+	sdpProfile    = "sdp"
 	minSize       = 10
 )
 
@@ -60,8 +61,10 @@ func (vpcs *VPCSession) CreateVolume(volumeRequest provider.Volume) (volumeRespo
 			Name: volumeRequest.Az,
 		},
 	}
-	// adding snapshot ID in the request if it is provided to create the volume from snapshot
-	if len(volumeRequest.SnapshotID) > 0 {
+	// adding snapshot CRN and ID in the request, if it is provided to create the volume from snapshot
+	if len(volumeRequest.SnapshotCRN) > 0 {
+		volumeTemplate.SourceSnapshot = &models.Snapshot{CRN: volumeRequest.SnapshotCRN}
+	} else if len(volumeRequest.SnapshotID) > 0 { // This is for backward compatibility
 		volumeTemplate.SourceSnapshot = &models.Snapshot{ID: volumeRequest.SnapshotID}
 	}
 
@@ -119,13 +122,6 @@ func validateVolumeRequest(volumeRequest *provider.Volume, clusterVolumeLabel st
 		return resourceGroup, iops, userError.GetUserError("InvalidVolumeName", nil, *volumeRequest.Name)
 	}
 
-	// Capacity should not be empty
-	if volumeRequest.Capacity == nil {
-		return resourceGroup, iops, userError.GetUserError("VolumeCapacityInvalid", nil, nil)
-	} else if *volumeRequest.Capacity < minSize {
-		return resourceGroup, iops, userError.GetUserError("VolumeCapacityInvalid", nil, *volumeRequest.Capacity)
-	}
-
 	// Read user provided error, no harm to pass the 0 values to RIaaS in case of tiered profiles
 	if volumeRequest.Iops != nil {
 		iops = ToInt64(*volumeRequest.Iops)
@@ -133,7 +129,19 @@ func validateVolumeRequest(volumeRequest *provider.Volume, clusterVolumeLabel st
 	if volumeRequest.VPCVolume.Profile == nil {
 		return resourceGroup, iops, userError.GetUserError("VolumeProfileEmpty", nil)
 	}
-	if volumeRequest.VPCVolume.Profile.Name != customProfile && iops > 0 {
+
+	// Capacity should not be empty
+	if volumeRequest.Capacity == nil {
+		return resourceGroup, iops, userError.GetUserError("VolumeCapacityInvalid", nil, nil)
+	}
+
+	// Minimum Capacity validation for non SDP profiles.
+	if *volumeRequest.Capacity < minSize && volumeRequest.VPCVolume.Profile.Name != sdpProfile {
+		return resourceGroup, iops, userError.GetUserError("VolumeCapacityInvalid", nil, *volumeRequest.Capacity)
+	}
+
+	// IOPS not modifiable if profile is not custom or sdp
+	if (volumeRequest.VPCVolume.Profile.Name != customProfile && volumeRequest.VPCVolume.Profile.Name != sdpProfile) && iops > 0 {
 		return resourceGroup, iops, userError.GetUserError("VolumeProfileIopsInvalid", nil)
 	}
 
