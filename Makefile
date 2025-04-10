@@ -80,6 +80,10 @@ lint:
 build:
 	CGO_ENABLED=0 GOOS=$(shell go env GOOS) GOARCH=$(shell go env GOARCH) go build -mod=vendor -a -ldflags '-X main.vendorVersion='"${DRIVER_NAME}-${GIT_COMMIT_SHA}"' -extldflags "-static"' -o ${GOPATH}/bin/${EXE_DRIVER_NAME} ./cmd/
 
+.PHONY: update
+update:
+	./hack/update-vendor.sh
+
 .PHONY: verify
 verify:
 	echo "Verifying and linting files ..."
