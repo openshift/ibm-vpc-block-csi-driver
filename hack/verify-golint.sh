@@ -15,10 +15,11 @@
 # limitations under the License.
 
 set -euo pipefail
-curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin latest
+LINT_VERSION=v1.60.1
+curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin ${LINT_VERSION}
 if [[ -z "$(command -v golangci-lint)" ]]; then
   echo "Cannot find golangci-lint. Installing golangci-lint..."
-  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.51.2
+  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin ${LINT_VERSION}
   export PATH=$PATH:$(go env GOPATH)/bin
 fi
 
