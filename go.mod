@@ -6,7 +6,7 @@ require (
 	github.com/IBM/ibm-csi-common v1.1.7
 	github.com/IBM/ibmcloud-volume-interface v1.2.0
 	github.com/IBM/ibmcloud-volume-vpc v1.1.6
-	github.com/IBM/secret-utils-lib v1.1.4
+	github.com/IBM/secret-utils-lib v1.1.14-0.20250512115057-5d57ebfb8c78 // v1.1.4-jwt
 	github.com/container-storage-interface/spec v1.7.0
 	github.com/golang/glog v1.1.0
 	github.com/google/uuid v1.3.0
@@ -50,8 +50,7 @@ require (
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/gofrs/uuid v4.2.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
-	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
@@ -108,7 +107,6 @@ require (
 )
 
 replace (
-	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.1.0
 	k8s.io/api => k8s.io/api v0.26.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.26.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.26.1
