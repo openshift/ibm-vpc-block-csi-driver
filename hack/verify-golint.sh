@@ -15,7 +15,7 @@
 # limitations under the License.
 
 set -euo pipefail
-LINT_VERSION=v1.60.1
+LINT_VERSION=v1.64.8
 curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin ${LINT_VERSION}
 if [[ -z "$(command -v golangci-lint)" ]]; then
   echo "Cannot find golangci-lint. Installing golangci-lint..."
