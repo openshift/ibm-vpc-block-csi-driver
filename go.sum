@@ -47,8 +47,8 @@ github.com/IBM/ibmcloud-volume-vpc v1.1.6 h1:HU76slo59S6vPANtQxTDdco+Lu7EToQw7Ow
 github.com/IBM/ibmcloud-volume-vpc v1.1.6/go.mod h1:+UTHGrGzjyA2VjaozhB1xOjAcJ1lsi9mFqfGsqmuCOQ=
 github.com/IBM/secret-common-lib v1.1.4 h1:gKpKnaP45Y6u7VpSlFfXjjTAHpu4bz9Ofy+aR0t2RcI=
 github.com/IBM/secret-common-lib v1.1.4/go.mod h1:0L/lLfwi5jwTTmNYE2246HzBIdGz0m6wu/5tXoRp/Lc=
-github.com/IBM/secret-utils-lib v1.1.4 h1:8WPG9KBrLLRhGbQn34NWzrFKlyfIIaUfLeDg+iRJkes=
-github.com/IBM/secret-utils-lib v1.1.4/go.mod h1:RuD7z7GrfI/RS5UmQTfY51qWTgscMy06zbQi7i433TY=
+github.com/IBM/secret-utils-lib v1.1.14-0.20250512115057-5d57ebfb8c78 h1:B322zKJUi2soMy3a1FMc7N70LYZ28BKLvb0+ffEaY58=
+github.com/IBM/secret-utils-lib v1.1.14-0.20250512115057-5d57ebfb8c78/go.mod h1:llk/6NB1fyk02KTcHYvCiZEr15hFI0/+gW1dKwkv518=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
@@ -144,10 +144,8 @@ github.com/gofrs/uuid v4.2.0+incompatible/go.mod h1:b2aQJv3Z4Fp6yNu3cdSllBxTCLRx
 github.com/gogo/protobuf v1.1.1/go.mod h1:r8qH/GZQm5c6nD/R0oafs1akxWv10x8SbQlK7atdtwQ=
 github.com/gogo/protobuf v1.3.2 h1:Ov1cvc58UF3b5XjBnZv7+opcTcQFZebYjWzi34vdm4Q=
 github.com/gogo/protobuf v1.3.2/go.mod h1:P1XiOD3dCwIKUDQYPy72D8LYyHL2YPYrpS2s69NZV8Q=
-github.com/golang-jwt/jwt v3.2.2+incompatible h1:IfV12K8xAKAnZqdXVzCZ+TOjboZ2keLg81eXfW3O+oY=
-github.com/golang-jwt/jwt v3.2.2+incompatible/go.mod h1:8pz2t5EyA70fFQQSrl6XZXzqecmYZeUEB8OUGHkxJ+I=
-github.com/golang-jwt/jwt/v4 v4.2.0 h1:besgBTC8w8HjP6NzQdxwKH9Z5oQMZ24ThTrHp3cZ8eU=
-github.com/golang-jwt/jwt/v4 v4.2.0/go.mod h1:/xlHOz8bRuivTWchD4jCa+NbatV+wEUSzwAxVc6locg=
+github.com/golang-jwt/jwt/v4 v4.5.2 h1:YtQM7lnr8iZ+j5q71MGKkNw9Mn7AjHM68uc9g5fXeUI=
+github.com/golang-jwt/jwt/v4 v4.5.2/go.mod h1:m21LjoU+eqJr34lmDMbreY2eSTRJ1cv77w39/MY0Ch0=
 github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b/go.mod h1:SBH7ygxi8pfUlaOkMMuAQtPIUF8ecWP5IEl/CR7VP2Q=
 github.com/golang/glog v1.1.0 h1:/d3pCKDPWNnvIWe0vVUpNP32qc8U3PDVxySP/y360qE=
 github.com/golang/glog v1.1.0/go.mod h1:pfYeQZ3JWZoXTV5sFc986z3HTpwQs9At6P4ImfuP3NQ=
