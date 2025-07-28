@@ -24,11 +24,11 @@ elif [ "$(git status --porcelain -- go.mod go.sum | wc -l)" -gt 0 ]; then
     git diff -- go.mod go.sum
     exit 1
 elif [ -d vendor ]; then
-    if ! (set -x; ./hack/update-vendor.sh); then
+    if ! (set -x; env GO111MODULE=on go mod vendor); then
 	echo "ERROR: vendor check failed."
 	exit 1
     elif [ "$(git status --porcelain -- vendor | wc -l)" -gt 0 ]; then
-	echo "ERROR: vendor directory *not* up-to-date, it did get modified by './hack/update-vendor.sh':"
+	echo "ERROR: vendor directory *not* up-to-date, it did get modified by 'GO111MODULE=on go mod vendor':"
 	git status -- vendor
 	git diff -- vendor
 	exit 1
