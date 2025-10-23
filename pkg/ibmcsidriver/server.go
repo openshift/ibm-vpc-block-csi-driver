@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Kubernetes Authors.
+Copyright 2021 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -90,7 +90,7 @@ func (s *nonBlockingGRPCServer) Setup(endpoint string, ids csi.IdentityServer, c
 	u, err := url.Parse(endpoint)
 
 	if err != nil {
-		msg := "failed to parse endpoint"
+		msg := "Failed to parse endpoint"
 		s.logger.Error(msg, zap.Error(err))
 		return nil, err
 	}
@@ -172,7 +172,6 @@ func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, h
 	}
 	return resp, err
 }
-
 func removeCSISocket(endPoint string) {
 	// Reference: https://github.com/kubernetes-csi/node-driver-registrar/blob/master/cmd/csi-node-driver-registrar/node_register.go#L168
 	sigc := make(chan os.Signal, 1)

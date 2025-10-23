@@ -129,14 +129,7 @@ func (csiCS *CSIControllerServer) CreateVolume(ctx context.Context, req *csi.Cre
 		if sourceSnapshot == nil {
 			return nil, commonError.GetCSIError(ctxLogger, commonError.VolumeInvalidArguments, requestID, nil)
 		}
-		snapshotIdentifier := sourceSnapshot.GetSnapshotId()
-		// Remove all whitespaces and search crn: string at 0th position
-		// to finalise that user provided crn or not
-		if strings.Index(strings.ReplaceAll(snapshotIdentifier, " ", ""), "crn:") == 0 {
-			requestedVolume.SnapshotCRN = snapshotIdentifier
-		} else {
-			requestedVolume.SnapshotID = snapshotIdentifier
-		}
+		requestedVolume.SnapshotID = sourceSnapshot.GetSnapshotId()
 	}
 
 	existingVol, err := checkIfVolumeExists(session, *requestedVolume, ctxLogger)
@@ -226,7 +219,7 @@ func (csiCS *CSIControllerServer) ControllerPublishVolume(ctx context.Context, r
 	lockWaitStart := time.Now()
 	csiCS.mutex.Lock(nodeID)
 	defer csiCS.mutex.Unlock(nodeID)
-	defer metrics.UpdateDurationFromStart(ctxLogger, metrics.FunctionLabel("ControllerPublishVolume.Lock"), lockWaitStart)
+	metrics.UpdateDurationFromStart(ctxLogger, metrics.FunctionLabel("ControllerPublishVolume.Lock"), lockWaitStart)
 
 	volumeCapabilities := []*csi.VolumeCapability{volumeCapability}
 	// Validate volume capabilities, are all capabilities supported by driver or not
@@ -247,7 +240,7 @@ func (csiCS *CSIControllerServer) ControllerPublishVolume(ctx context.Context, r
 	// Volume not found
 	if volDetail == nil && err == nil {
 		return nil, commonError.GetCSIError(ctxLogger, commonError.ObjectNotFound, requestID, nil, volumeID)
-	} else if err != nil { // In case of other errors apart from volume not  found
+	} else if err != nil { // In case of other errors apart from volume not found
 		return nil, commonError.GetCSIError(ctxLogger, commonError.InternalError, requestID, err)
 	}
 
@@ -530,8 +523,7 @@ func (csiCS *CSIControllerServer) DeleteSnapshot(ctx context.Context, req *csi.D
 	}
 
 	snapshot := &provider.Snapshot{}
-	snapshot.SnapshotID, _ = getSnapshotAndAccountIDsFromCRN(snapshotID)
-
+	snapshot.SnapshotID = snapshotID
 	err = session.DeleteSnapshot(snapshot)
 	if err != nil {
 		if providerError.RetrivalFailed == providerError.GetErrorType(err) {
@@ -564,39 +556,24 @@ func (csiCS *CSIControllerServer) ListSnapshots(ctx context.Context, req *csi.Li
 
 	entries := []*csi.ListSnapshotsResponse_Entry{}
 	snapshotID := req.GetSnapshotId()
-	snapID, snapshotAccountID := getSnapshotAndAccountIDsFromCRN(snapshotID)
-	if len(snapID) != 0 {
-		if csiCS.Driver.accountID == snapshotAccountID { // in case snapshotID's account and cluster account ID is same
-			snapshot, err := session.GetSnapshot(snapID)
-			if snapshot == nil {
-				return &csi.ListSnapshotsResponse{}, nil
-			}
-			if providerError.RetrivalFailed == providerError.GetErrorType(err) {
-				ctxLogger.Info("Snapshot not found. Returning success ...")
-				return &csi.ListSnapshotsResponse{}, nil
-			}
-			return &csi.ListSnapshotsResponse{
-				Entries: append(entries, &csi.ListSnapshotsResponse_Entry{
-					Snapshot: createCSISnapshotResponse(*snapshot).Snapshot,
-				}),
-				NextToken: "",
-			}, nil
-		} else { // In case of cross account volume snapshot
-			return &csi.ListSnapshotsResponse{
-				Entries: append(entries, &csi.ListSnapshotsResponse_Entry{
-					Snapshot: &csi.Snapshot{
-						SnapshotId:     snapshotID,
-						SourceVolumeId: "",
-						ReadyToUse:     true,
-					},
-				}),
-				NextToken: "",
-			}, nil
+	if len(snapshotID) != 0 {
+		snapshot, err := session.GetSnapshot(snapshotID)
+		if snapshot == nil {
+			return &csi.ListSnapshotsResponse{}, nil
 		}
-
+		if providerError.RetrivalFailed == providerError.GetErrorType(err) {
+			ctxLogger.Info("Snapshot not found. Returning success ...")
+			return &csi.ListSnapshotsResponse{}, nil
+		}
+		return &csi.ListSnapshotsResponse{
+			Entries: append(entries, &csi.ListSnapshotsResponse_Entry{
+				Snapshot: createCSISnapshotResponse(*snapshot).Snapshot,
+			}),
+			NextToken: "",
+		}, nil
 	}
 
-	maxEntries := int(req.GetMaxEntries())
+	maxEntries := int(req.MaxEntries)
 	tags := map[string]string{}
 	sourceVolumeID := req.GetSourceVolumeId()
 	if len(sourceVolumeID) != 0 {

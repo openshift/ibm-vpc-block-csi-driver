@@ -1001,7 +1001,7 @@ func TestCreateSnapshot(t *testing.T) {
 			},
 			expResponse: &csi.CreateSnapshotResponse{
 				Snapshot: &csi.Snapshot{
-					SnapshotId:     "crn://accountid:vpc snapshot service/snapshotid", //"snap-id",
+					SnapshotId:     "snap-id",
 					SourceVolumeId: "testVolumeId",
 					SizeBytes:      stdCapRange.RequiredBytes,
 					ReadyToUse:     false,
@@ -1010,7 +1010,7 @@ func TestCreateSnapshot(t *testing.T) {
 			},
 			expErrCode: codes.OK,
 			libSnapshotResponse: &provider.Snapshot{
-				SnapshotCRN:          "crn://accountid:vpc snapshot service/snapshotid",
+				SnapshotID:           "snap-id",
 				VolumeID:             "testVolumeId",
 				SnapshotSize:         stdCapRange.RequiredBytes,
 				ReadyToUse:           false,
@@ -1061,7 +1061,7 @@ func TestCreateSnapshot(t *testing.T) {
 			},
 			expResponse: &csi.CreateSnapshotResponse{
 				Snapshot: &csi.Snapshot{
-					SnapshotId:     "crn://accountid:vpc snapshot service/snapshotid",
+					SnapshotId:     "snap-id",
 					SourceVolumeId: "testVolumeId",
 					SizeBytes:      stdCapRange.RequiredBytes,
 					ReadyToUse:     false,
@@ -1070,7 +1070,7 @@ func TestCreateSnapshot(t *testing.T) {
 			},
 			expErrCode: codes.OK,
 			libSnapshotByNameResponse: &provider.Snapshot{
-				SnapshotCRN:          "crn://accountid:vpc snapshot service/snapshotid",
+				SnapshotID:           "snap-id",
 				VolumeID:             "testVolumeId",
 				SnapshotSize:         stdCapRange.RequiredBytes,
 				ReadyToUse:           false,
@@ -1472,14 +1472,6 @@ func TestListSnapshots(t *testing.T) {
 			snapshotID:        "snapshot-id",
 			expectedEntries:   0,
 			libGetSnapshotErr: true,
-			expErrCode:        codes.OK,
-			libSnapshotError:  nil,
-		},
-		{
-			name:              "List snapshot with snapshotID as CRN",
-			snapshotID:        "crn:v1:staging:public:is:us-south:a/77f2bcedd73fe82c1c::snapshot:r134-1ad4-4852-b24a-b65050e42429",
-			expectedEntries:   1,
-			libGetSnapshotErr: false,
 			expErrCode:        codes.OK,
 			libSnapshotError:  nil,
 		},

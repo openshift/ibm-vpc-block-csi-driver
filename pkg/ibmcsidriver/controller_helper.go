@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Kubernetes Authors.
+Copyright 2021 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,17 +32,31 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// Capacity vs IOPS range for Custom Class
+type classRange struct {
+	minSize int
+	maxSize int
+	minIops int
+	maxIops int
+}
+
+// Range as per IBM volume provider Storage
+var customCapacityIopsRanges = []classRange{
+	{10, 39, 100, 1000},
+	{40, 79, 100, 2000},
+	{80, 99, 100, 4000},
+	{100, 499, 100, 6000},
+	{500, 999, 100, 10000},
+	{1000, 1999, 100, 20000},
+}
+
 // normalize the requested capacity(in GiB) to what is supported by the driver
-func getRequestedCapacity(capRange *csi.CapacityRange, profileName string) (int64, error) {
+func getRequestedCapacity(capRange *csi.CapacityRange) (int64, error) {
 	// Input is in bytes from csi
 	var capBytes int64
 	// Default case where nothing is set
 	if capRange == nil {
-		if profileName == SDPProfile { // SDP profile minimum size is 1GB
-			capBytes = MinimumSDPVolumeSizeInBytes
-		} else {
-			capBytes = utils.MinimumVolumeSizeInBytes // tier and custom profile minimum size is 10 GB
-		}
+		capBytes = utils.MinimumVolumeSizeInBytes
 		// returns in GiB
 		return capBytes, nil
 	}
@@ -69,8 +83,7 @@ func getRequestedCapacity(capRange *csi.CapacityRange, profileName string) (int6
 
 	// Limit is more than Required, but larger than Minimum. So we just set capcity to Minimum
 	// Too small, default
-	// If profile is SDP profile then no need to check for minimum size as the RoundUpBytes will giving minimum value as 1 GiB
-	if capBytes < utils.MinimumVolumeSizeInBytes && profileName != SDPProfile {
+	if capBytes < utils.MinimumVolumeSizeInBytes {
 		capBytes = utils.MinimumVolumeSizeInBytes
 	}
 
@@ -163,20 +176,12 @@ func getVolumeParameters(logger *zap.Logger, req *csi.CreateVolumeRequest, confi
 			logger.Info("Ignoring storage class parameter, for backward compatibility", zap.Any("ClassParameter", Generation))
 
 		case IOPS:
-			// Default IOPS can be specified in Custom or sdp class
+			// Default IOPS can be specified in Custom class
 			if len(value) != 0 {
 				iops := value
 				volume.Iops = &iops
 			}
-		case Throughput: // getting throughput value from storage class if it is provided
-			if len(value) != 0 {
-				bandwidth, errParse := strconv.ParseInt(value, 10, 32)
-				if errParse != nil {
-					err = fmt.Errorf("'<%v>' is invalid, value of '%s' should be an int32 type", value, key)
-				} else {
-					volume.Bandwidth = int32(bandwidth)
-				}
-			}
+
 		default:
 			err = fmt.Errorf("<%s> is an invalid parameter", key)
 		}
@@ -190,15 +195,9 @@ func getVolumeParameters(logger *zap.Logger, req *csi.CreateVolumeRequest, confi
 		volume.VolumeEncryptionKey = nil
 	}
 
-	if volume.Profile == nil {
-		err = fmt.Errorf("volume profile is empty, you need to pass valid profile name")
-		logger.Error("getVolumeParameters", zap.NamedError("InvalidRequest", err))
-		return volume, err
-	}
-
 	// Get the requested capacity from the request
 	capacityRange := req.GetCapacityRange()
-	capBytes, err := getRequestedCapacity(capacityRange, volume.Profile.Name)
+	capBytes, err := getRequestedCapacity(capacityRange)
 	if err != nil {
 		err = fmt.Errorf("invalid PVC capacity size: '%v'", err)
 		logger.Error("getVolumeParameters", zap.NamedError("invalid parameter", err))
@@ -247,8 +246,8 @@ func getVolumeParameters(logger *zap.Logger, req *csi.CreateVolumeRequest, confi
 		return volume, err
 	}
 
-	if volume.Profile != nil && (volume.Profile.Name != CustomProfile && volume.Profile.Name != SDPProfile) {
-		// Specify IOPS only for custom or SDP class
+	if volume.Profile != nil && volume.Profile.Name != CustomProfile {
+		// Specify IOPS only for custom class
 		volume.Iops = nil
 	}
 
@@ -265,6 +264,28 @@ func getVolumeParameters(logger *zap.Logger, req *csi.CreateVolumeRequest, confi
 	}
 
 	return volume, nil
+}
+
+// Validate size and iops for custom class
+func isValidCapacityIOPS4CustomClass(size int, iops int) (bool, error) {
+	var ind = -1
+	for i, entry := range customCapacityIopsRanges {
+		if size >= entry.minSize && size <= entry.maxSize {
+			ind = i
+			break
+		}
+	}
+
+	if ind < 0 {
+		return false, fmt.Errorf("invalid PVC size for custom class: <%v>. Should be in range [%d - %d]GiB",
+			size, utils.MinimumVolumeDiskSizeInGb, utils.MaximumVolumeDiskSizeInGb)
+	}
+
+	if iops < customCapacityIopsRanges[ind].minIops || iops > customCapacityIopsRanges[ind].maxIops {
+		return false, fmt.Errorf("invalid IOPS: <%v> for capacity: <%vGiB>. Should be in range [%d - %d]",
+			iops, size, customCapacityIopsRanges[ind].minIops, customCapacityIopsRanges[ind].maxIops)
+	}
+	return true, nil
 }
 
 func overrideParams(logger *zap.Logger, req *csi.CreateVolumeRequest, config *config.Config, volume *provider.Volume) error {
@@ -321,18 +342,19 @@ func overrideParams(logger *zap.Logger, req *csi.CreateVolumeRequest, config *co
 				volume.Region = value
 			}
 		case IOPS:
-			// Override IOPS only for custom or sdp class
-			if len(value) != 0 {
-				iops := value
-				volume.Iops = &iops
-			}
-		case Throughput: // getting throughput value from storage class if it is provided
-			if len(value) != 0 {
-				bandwidth, errParse := strconv.ParseInt(value, 10, 32)
-				if errParse != nil {
-					err = fmt.Errorf("'<%v>' is invalid, value of '%s' should be an int32 type", value, key)
+			// Override IOPS only for custom class
+			if volume.Capacity != nil && volume.Profile != nil && volume.Profile.Name == "custom" {
+				var iops int
+				var check bool
+				iops, err = strconv.Atoi(value)
+				if err != nil {
+					err = fmt.Errorf("%v:<%v> invalid value", key, value)
 				} else {
-					volume.Bandwidth = int32(bandwidth)
+					if check, err = isValidCapacityIOPS4CustomClass(*(volume.Capacity), iops); check {
+						iopsStr := value
+						logger.Info("override", zap.Any(IOPS, value))
+						volume.Iops = &iopsStr
+					}
 				}
 			}
 		default:
@@ -439,36 +461,12 @@ func createCSIVolumeResponse(vol provider.Volume, capBytes int64, zones []string
 	return volResp
 }
 
-// getAccountID ...
-func getAccountID(input string) string {
-	tokens := strings.Split(input, "/")
-
-	if len(tokens) > 1 {
-		return tokens[1]
-	} else {
-		return ""
-	}
-}
-
-// getSnapshotAndAccountIDsFromCRN ...
-func getSnapshotAndAccountIDsFromCRN(crn string) (string, string) {
-	// This method will be able to handle either crn is actual crn or caller passed snapshot ID also
-	// expected CRN -> crn:v1:service:public:is:us-south:a/c468d8642937fecd8a0860fe0f379bf9::snapshot:r006-1234fe0c-3d9b-4c95-a6d1-8e0d4bcb6ecb
-	// or crn passed as sanpshotID like r006-1234fe0c-3d9b-4c95-a6d1-8e0d4bcb6ecb
-	crnTokens := strings.Split(crn, ":")
-
-	if len(crnTokens) > 9 {
-		return crnTokens[len(crnTokens)-1], getAccountID(crnTokens[len(crnTokens)-4])
-	}
-	return crn, "" // assuming that crn will contain only snapshotID
-}
-
 // createCSISnapshotResponse ...
 func createCSISnapshotResponse(snapshot provider.Snapshot) *csi.CreateSnapshotResponse {
 	ts := timestamppb.New(snapshot.SnapshotCreationTime)
 	return &csi.CreateSnapshotResponse{
 		Snapshot: &csi.Snapshot{
-			SnapshotId:     snapshot.SnapshotCRN,
+			SnapshotId:     snapshot.SnapshotID,
 			SourceVolumeId: snapshot.VolumeID,
 			SizeBytes:      snapshot.SnapshotSize,
 			CreationTime:   ts,

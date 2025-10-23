@@ -86,7 +86,7 @@ func TestSetupSidecar(t *testing.T) {
 				err := os.Setenv("SIDECAR_GROUP_ID", tc.groupID)
 				assert.NoError(t, err)
 			} else {
-				err := os.Unsetenv("SIDECAR_GROUP_ID")
+				err := os.Setenv("SIDECAR_GROUP_ID", tc.groupID)
 				assert.NoError(t, err)
 			}
 			defer os.Unsetenv("SIDECAR_GROUP_ID") // nolint:errcheck

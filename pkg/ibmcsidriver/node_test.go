@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kubernetes Authors.
+Copyright 2025 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,12 +20,12 @@ package ibmcsidriver
 import (
 	"errors"
 	"fmt"
-	"os"
-	"strings"
-	"testing"
-
 	"k8s.io/utils/exec"
 	testingexec "k8s.io/utils/exec/testing"
+	"os"
+	"runtime"
+	"strings"
+	"testing"
 
 	"github.com/IBM/ibm-csi-common/pkg/utils"
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
@@ -471,7 +471,11 @@ func TestNodeGetCapabilities(t *testing.T) {
 }
 
 func TestNodeGetInfo(t *testing.T) {
+	cores := runtime.NumCPU()
 	var maxVolumesPerNode int64 = DefaultVolumesPerNode
+	if cores >= MinimumCoresWithMaximumAttachableVolumes {
+		maxVolumesPerNode = MaxVolumesPerNode
+	}
 
 	testCases := []struct {
 		name          string

@@ -18,9 +18,8 @@ limitations under the License.
 package ibmcsidriver
 
 import (
-	"testing"
-
 	testingexec "k8s.io/utils/exec/testing"
+	"testing"
 
 	nodeMetadata "github.com/IBM/ibm-csi-common/pkg/metadata"
 	nodeInfo "github.com/IBM/ibm-csi-common/pkg/metadata/fake"

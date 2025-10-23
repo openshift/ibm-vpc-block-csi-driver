@@ -1,18 +1,17 @@
-kind: Deployment
+kind: StatefulSet
 apiVersion: apps/v1
 metadata:
   name: ibm-vpc-block-csi-controller
   namespace: kube-system
   labels:
-    app: ibm-vpc-block-csi-controller
+    app: ibm-vpc-block-csi-driver
     addonmanager.kubernetes.io/mode: Reconcile
-    app.kubernetes.io/name: ibm-vpc-block-csi-driver
 spec:
+  serviceName: "ibm-vpc-block-service"
   replicas: 1
   selector:
     matchLabels:
-      app: ibm-vpc-block-csi-controller
-      app.kubernetes.io/name: ibm-vpc-block-csi-driver
+      app: ibm-vpc-block-csi-driver
   template:
     metadata:
       annotations:
@@ -20,8 +19,7 @@ spec:
         prometheus.io/port: "9080"
         prometheus.io/path: "/metrics"
       labels:
-        app: ibm-vpc-block-csi-controller
-        app.kubernetes.io/name: ibm-vpc-block-csi-driver
+        app: ibm-vpc-block-csi-driver
     spec:
       priorityClassName: system-cluster-critical
       serviceAccountName: ibm-vpc-block-controller-sa
@@ -210,3 +208,4 @@ spec:
         - name: customer-auth
           secret:
             secretName: storage-secret-store
+  volumeClaimTemplates: []

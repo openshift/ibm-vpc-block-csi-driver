@@ -1,10 +1,16 @@
+# See the OWNERS docs: https://git.k8s.io/community/docs/devel/owners.md
+
 aliases:
-  openshift-storage-maintainers:
-    - jsafrane
-    - tsmetana
-    - gnufied
-    - dobsonj
-    - RomanBednar
-    - mpatlasov
-    - dfajmon
-    - rhrmo
+  provider-ibmcloud-leads:
+    - bradtopol
+    - spzala
+  ibmcloud-paas-storage-leads:
+    - arahamad
+  ibmcloud-paas-storage-reviewers:
+    - arahamad
+    - ambiknai
+  ibm-vpc-csi-driver-admins:
+    - arahamad
+  ibm-vpc-csi-driver-maintainers:
+    - arahamad
+    - ambiknai

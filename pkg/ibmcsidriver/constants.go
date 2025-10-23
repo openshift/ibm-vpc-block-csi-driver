@@ -18,7 +18,6 @@ limitations under the License.
 package ibmcsidriver
 
 import (
-	"github.com/IBM/ibm-csi-common/pkg/utils"
 	"github.com/kubernetes-sigs/ibm-vpc-block-csi-driver/config"
 )
 
@@ -65,9 +64,6 @@ const (
 
 	// CustomProfile ...
 	CustomProfile = "custom"
-
-	// SDPProfile ...
-	SDPProfile = "sdp"
 
 	// ClassVersion ...
 	ClassVersion = "classVersion"
@@ -125,16 +121,10 @@ const (
 
 	// MAX_SNAPSHOT_CREATE_DELAY ... This is max timeout value for csi-snapshotter
 	MAX_SNAPSHOT_CREATE_DELAY = 900 //900 seconds
-
-	// MinimumSDPVolumeSizeInBytes ... This is minimum size require for sdp (acadia profile)
-	MinimumSDPVolumeSizeInBytes int64 = 1 * utils.GiB
-
-	// Throughput ...
-	Throughput = "throughput"
 )
 
 // SupportedFS the supported FS types
 var SupportedFS = []string{"ext2", "ext3", "ext4", "xfs"}
 
 // SupportedProfile the supported profile names
-var SupportedProfile = []string{"custom", "general-purpose", "5iops-tier", "10iops-tier", "sdp"}
+var SupportedProfile = []string{"custom", "general-purpose", "5iops-tier", "10iops-tier"}
