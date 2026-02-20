@@ -453,7 +453,7 @@ func TestOverrideParams(t *testing.T) {
 			},
 			expectedVolume: &provider.Volume{},
 			expectedStatus: true,
-			expectedError:  fmt.Errorf("%s:<%v> exceeds %d bytes ", ResourceGroup, exceededResourceGID, ResourceGroupIDMaxLen),
+			expectedError:  fmt.Errorf("%s:<%v> exceeds %d bytes", ResourceGroup, exceededResourceGID, ResourceGroupIDMaxLen),
 		},
 		{
 			testCaseName: "Encryption key size exceeded",
@@ -804,6 +804,79 @@ func TestGetPrefedTopologyParams(t *testing.T) {
 			} else {
 				assert.Equal(t, testcase.expectedError, err)
 			}
+		})
+	}
+}
+
+func TestGetResourceGroup(t *testing.T) {
+	testCases := []struct {
+		description    string
+		snapShotParams map[string]string
+		expectedRG     string
+		expectedStatus bool
+	}{
+		{
+			description: "Valid resource group passed to snapshot params",
+			snapShotParams: map[string]string{
+				ResourceGroup: "123r2423",
+			},
+			expectedRG:     "123r2423",
+			expectedStatus: true,
+		},
+		{
+			description: "empty resource group passed to snapshot params",
+			snapShotParams: map[string]string{
+				ResourceGroup: "",
+			},
+			expectedRG:     "10000000",
+			expectedStatus: true,
+		},
+		{
+			description: "empty space resource group passed to snapshot params",
+			snapShotParams: map[string]string{
+				ResourceGroup: "   ",
+			},
+			expectedRG:     "10000000",
+			expectedStatus: true,
+		},
+		{
+			description:    "no resource group passed to snapshot params",
+			snapShotParams: nil,
+			expectedRG:     "10000000",
+			expectedStatus: true,
+		},
+	}
+
+	// Set up
+	// Creating test logger
+	logger, teardown := cloudProvider.GetTestLogger(t)
+	defer teardown()
+
+	testConfig := &config.Config{
+		Server: &config.ServerConfig{
+			DebugTrace: true,
+		},
+		VPC: &config.VPCProviderConfig{
+			Enabled:              true,
+			VPCBlockProviderName: "vpc-classic",
+			EndpointURL:          "TestEndpointURL",
+			VPCTimeout:           "30s",
+			MaxRetryAttempt:      5,
+			MaxRetryGap:          10,
+			APIVersion:           "TestAPIVersion",
+			G2ResourceGroupID:    "10000000",
+		},
+		IKS: &config.IKSConfig{
+			Enabled:              true,
+			IKSBlockProviderName: "iks-block",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			RG := getResourceGroup(logger, tc.snapShotParams, testConfig)
+
+			assert.Equal(t, tc.expectedRG, RG)
 		})
 	}
 }
