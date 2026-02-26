@@ -76,7 +76,8 @@ lint: deps
 
 .PHONY: build
 build:
-	CGO_ENABLED=0 GOOS=$(shell go env GOOS) GOARCH=$(shell go env GOARCH) go build -mod=vendor -a -ldflags '-X main.vendorVersion='"${DRIVER_NAME}-${GIT_COMMIT_SHA}"' -extldflags "-static"' -o ${GOPATH}/bin/${EXE_DRIVER_NAME} ./cmd/
+# OpenShift: <carry>: do not write the binary to ${GOPATH}, it's not stable in the builder.
+	CGO_ENABLED=0 GOOS=$(shell go env GOOS) GOARCH=$(shell go env GOARCH) go build -mod=vendor -a -ldflags '-X main.vendorVersion='"${DRIVER_NAME}-${GIT_COMMIT_SHA}"' -extldflags "-static"' -o bin/${EXE_DRIVER_NAME} ./cmd/
 
 .PHONY: verify
 verify: deps
