@@ -1,6 +1,6 @@
 module github.com/kubernetes-sigs/ibm-vpc-block-csi-driver
 
-go 1.22.0
+go 1.24.0
 
 require (
 	github.com/IBM/ibm-csi-common v1.1.18
@@ -8,16 +8,16 @@ require (
 	github.com/IBM/ibmcloud-volume-vpc v1.1.15
 	github.com/IBM/secret-utils-lib v1.1.12
 	github.com/container-storage-interface/spec v1.9.0
-	github.com/golang/glog v1.2.4
+	github.com/golang/glog v1.2.5
 	github.com/google/uuid v1.6.0
 	github.com/kubernetes-csi/csi-test/v4 v4.3.0
 	github.com/prometheus/client_golang v1.19.1
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.26.0
-	golang.org/x/net v0.33.0
-	golang.org/x/sys v0.28.0
-	google.golang.org/grpc v1.65.0
-	google.golang.org/protobuf v1.34.2
+	golang.org/x/net v0.48.0
+	golang.org/x/sys v0.39.0
+	google.golang.org/grpc v1.79.3
+	google.golang.org/protobuf v1.36.10
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/kubernetes v1.30.4
 	k8s.io/mount-utils v0.30.4
@@ -39,7 +39,7 @@ require (
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.3 // indirect
-	github.com/go-logr/logr v1.4.2 // indirect
+	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-openapi/errors v0.21.0 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
@@ -54,7 +54,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
@@ -81,12 +81,12 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.mongodb.org/mongo-driver v1.14.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.31.0 // indirect
-	golang.org/x/oauth2 v0.21.0 // indirect
-	golang.org/x/term v0.27.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/crypto v0.46.0 // indirect
+	golang.org/x/oauth2 v0.34.0 // indirect
+	golang.org/x/term v0.38.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240701130421-f6361c86f094 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
