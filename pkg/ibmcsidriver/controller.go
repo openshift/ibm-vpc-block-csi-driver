@@ -467,6 +467,8 @@ func (csiCS *CSIControllerServer) CreateSnapshot(ctx context.Context, req *csi.C
 		return nil, commonError.GetCSIError(ctxLogger, commonError.MissingSourceVolumeID, requestID, nil)
 	}
 
+	resourceGroupID := getResourceGroup(ctxLogger, req.GetParameters(), csiCS.CSIProvider.GetConfig())
+
 	// Validate if volume Already Exists
 	session, err := csiCS.CSIProvider.GetProviderSession(ctx, ctxLogger)
 	if err != nil {
@@ -479,7 +481,11 @@ func (csiCS *CSIControllerServer) CreateSnapshot(ctx context.Context, req *csi.C
 		return nil, commonError.GetCSIError(ctxLogger, commonError.InternalError, requestID, err)
 	}
 
-	snapshot, err := session.GetSnapshotByName(snapshotName)
+	snapshot, err := session.GetSnapshotByName(snapshotName, resourceGroupID)
+	if err != nil {
+		return nil, commonError.GetCSIError(ctxLogger, commonError.ListSnapshotsFailed, requestID, err)
+	}
+
 	if snapshot != nil {
 		if snapshot.VolumeID != sourceVolumeID {
 			return nil, commonError.GetCSIError(ctxLogger, commonError.SnapshotAlreadyExists, requestID, err, snapshotName, sourceVolumeID)
@@ -487,12 +493,14 @@ func (csiCS *CSIControllerServer) CreateSnapshot(ctx context.Context, req *csi.C
 		ctxLogger.Info("Snapshot with name already exist for volume", zap.Reflect("SnapshotName", snapshotName), zap.Reflect("VolumeID", sourceVolumeID))
 		return createCSISnapshotResponse(*snapshot), nil
 	}
+
 	snapshotParameters := provider.SnapshotParameters{}
 	snapshotParameters.Name = snapshotName
 	snapshotTags := map[string]string{
 		"name": snapshotName,
 	}
 	snapshotParameters.SnapshotTags = snapshotTags
+	snapshotParameters.ResourceGroup = resourceGroupID
 
 	snapshot, err = session.CreateSnapshot(sourceVolumeID, snapshotParameters)
 
