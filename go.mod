@@ -138,3 +138,5 @@ replace (
 )
 
 replace google.golang.org/grpc => github.com/openshift-sustaining/grpc-go v1.64.1-sec.1
+
+replace golang.org/x/crypto => golang.org/x/crypto v0.23.0
