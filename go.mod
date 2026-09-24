@@ -17,7 +17,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.20.0
 	golang.org/x/net v0.28.0
-	golang.org/x/sys v0.28.0
+	golang.org/x/sys v0.30.0
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.34.2
 	k8s.io/klog/v2 v2.80.1
@@ -85,10 +85,10 @@ require (
 	go.mongodb.org/mongo-driver v1.7.5 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	golang.org/x/crypto v0.26.0 // indirect
+	golang.org/x/crypto v0.33.0 // indirect
 	golang.org/x/oauth2 v0.22.0 // indirect
-	golang.org/x/term v0.23.0 // indirect
-	golang.org/x/text v0.17.0 // indirect
+	golang.org/x/term v0.29.0 // indirect
+	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240814211410-ddb44dafa142 // indirect
 	gopkg.in/go-playground/validator.v9 v9.31.0 // indirect
@@ -139,3 +139,5 @@ replace (
 )
 
 replace google.golang.org/grpc => github.com/openshift-sustaining/grpc-go v1.67.3-sec.1
+
+replace golang.org/x/net => github.com/openshift-sustaining/net v0.35.0-sec.4
