@@ -979,6 +979,8 @@ func TestControllerGetCapabilities(t *testing.T) {
 }
 
 func TestCreateSnapshot(t *testing.T) {
+	// Set delay to 0 so the error-path sleep in CreateSnapshot doesn't stall tests
+	t.Setenv("CUSTOM_SNAPSHOT_CREATE_DELAY", "0")
 	timeNow := time.Now()
 	creationTime := timestamppb.New(timeNow)
 	// test cases
@@ -1163,6 +1165,23 @@ func TestDeleteSnapshot(t *testing.T) {
 			libGetSnapshotResponseErr:      nil,
 			libDeleteSnapshotResponseError: providerError.Message{Code: "FailedToDeleteSnapshot", Description: "Snapshot deletion failed", Type: providerError.DeletionFailed},
 		},
+		{
+			name: "Delete snapshot - retrival failed treated as already deleted",
+			req: &csi.DeleteSnapshotRequest{
+				SnapshotId: "snap-id",
+			},
+			expResponse:                    &csi.DeleteSnapshotResponse{},
+			expErrCode:                     codes.OK,
+			libDeleteSnapshotResponseError: providerError.Message{Code: "StorageFindFailedWithSnapshotId", Description: "Snapshot not found", Type: providerError.RetrivalFailed},
+		},
+		{
+			name: "Delete snapshot - non-retrival delete error returns internal",
+			req: &csi.DeleteSnapshotRequest{
+				SnapshotId: "snap-id",
+			},
+			expErrCode:                     codes.Internal,
+			libDeleteSnapshotResponseError: providerError.Message{Code: "InternalError", Description: "unexpected error", Type: providerError.PermissionDenied},
+		},
 	}
 
 	// Creating test logger
@@ -1289,14 +1308,72 @@ func TestControllerExpandVolume(t *testing.T) {
 		libVolumeError       error
 	}{
 		{
-			name:                 "Success controller expand volume",
-			req:                  &csi.ControllerExpandVolumeRequest{VolumeId: "volumeid", CapacityRange: stdCapRange},
-			expResponse:          &csi.ControllerExpandVolumeResponse{CapacityBytes: stdCapRange.RequiredBytes, NodeExpansionRequired: true},
-			expErrCode:           codes.OK,
-			libExpandResponse:    &http.Response{StatusCode: http.StatusOK},
-			libVolumeResponse:    &provider.Volume{Capacity: &cap, Name: &volName, VolumeID: "volumeid", Iops: &iopsStr, Az: "myzone", Region: "myregion"},
-			libExpandResponseErr: nil,
-			libVolumeError:       nil,
+			name: "Success controller expand volume - filesystem mode",
+			req: &csi.ControllerExpandVolumeRequest{
+				VolumeId:         "volumeid",
+				CapacityRange:    stdCapRange,
+				VolumeCapability: stdVolCap[0],
+			},
+			expResponse: &csi.ControllerExpandVolumeResponse{
+				CapacityBytes:         stdCapRange.RequiredBytes,
+				NodeExpansionRequired: true,
+			},
+			expErrCode:        codes.OK,
+			libExpandResponse: &http.Response{StatusCode: http.StatusOK},
+			libVolumeResponse: &provider.Volume{
+				Capacity: &cap,
+				Name:     &volName,
+				VolumeID: "volumeid",
+				Iops:     &iopsStr,
+				Az:       "myzone",
+				Region:   "myregion",
+			},
+			libExpandResponseErr: nil, libVolumeError: nil,
+		},
+		{
+			name: "Success controller expand volume - block mode",
+			req: &csi.ControllerExpandVolumeRequest{
+				VolumeId:         "volumeid",
+				CapacityRange:    stdCapRange,
+				VolumeCapability: stdBlockVolCap[0],
+			},
+			expResponse: &csi.ControllerExpandVolumeResponse{
+				CapacityBytes:         stdCapRange.RequiredBytes,
+				NodeExpansionRequired: false,
+			},
+			expErrCode:        codes.OK,
+			libExpandResponse: &http.Response{StatusCode: http.StatusOK},
+			libVolumeResponse: &provider.Volume{
+				Capacity: &cap,
+				Name:     &volName,
+				VolumeID: "volumeid",
+				Iops:     &iopsStr,
+				Az:       "myzone",
+				Region:   "myregion",
+			},
+			libExpandResponseErr: nil, libVolumeError: nil,
+		},
+		{
+			name: "Success controller expand volume - nil volume capability",
+			req: &csi.ControllerExpandVolumeRequest{
+				VolumeId:      "volumeid",
+				CapacityRange: stdCapRange,
+			},
+			expResponse: &csi.ControllerExpandVolumeResponse{
+				CapacityBytes:         stdCapRange.RequiredBytes,
+				NodeExpansionRequired: true,
+			},
+			expErrCode:        codes.OK,
+			libExpandResponse: &http.Response{StatusCode: http.StatusOK},
+			libVolumeResponse: &provider.Volume{
+				Capacity: &cap,
+				Name:     &volName,
+				VolumeID: "volumeid",
+				Iops:     &iopsStr,
+				Az:       "myzone",
+				Region:   "myregion",
+			},
+			libExpandResponseErr: nil, libVolumeError: nil,
 		},
 		{
 			name:                 "Nil capacity",
@@ -1554,4 +1631,25 @@ func TestListSnapshots(t *testing.T) {
 			}
 		}
 	}
+}
+func TestControllerGetVolume(t *testing.T) {
+	// Setup new driver each time so no interference
+	icDriver := initIBMCSIDriver(t)
+
+	resp, err := icDriver.cs.ControllerGetVolume(context.Background(), &csi.ControllerGetVolumeRequest{})
+
+	assert.Nil(t, resp)
+	assert.NotNil(t, err)
+	assert.Equal(t, codes.Unimplemented, status.Code(err))
+}
+
+func TestControllerModifyVolume(t *testing.T) {
+	// Setup new driver each time so no interference
+	icDriver := initIBMCSIDriver(t)
+
+	resp, err := icDriver.cs.ControllerModifyVolume(context.Background(), &csi.ControllerModifyVolumeRequest{})
+
+	assert.Nil(t, resp)
+	assert.NotNil(t, err)
+	assert.Equal(t, codes.Unimplemented, status.Code(err))
 }

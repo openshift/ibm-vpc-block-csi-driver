@@ -20,7 +20,7 @@ GIT_COMMIT_SHA="$(shell git rev-parse HEAD 2>/dev/null)"
 GIT_REMOTE_URL="$(shell git config --get remote.origin.url 2>/dev/null)"
 BUILD_DATE="$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")"
 OSS_FILES := go.mod Dockerfile
-GOLANG_VERSION="1.25.10"
+GOLANG_VERSION="1.26.6"
 
 
 
@@ -35,7 +35,7 @@ CORE_DRIVER_IMG ?= $(REGISTRY)/$(CORE_IMAGE_NAME)
 
 TAG ?= dev
 ARCH ?= amd64
-ALL_ARCH ?= amd64 ppc64le
+ALL_ARCH ?= amd64 arm64 ppc64le s390x
 
 
 
@@ -78,7 +78,7 @@ lint: deps
 .PHONY: build
 build:
 # OpenShift: <carry>: do not write the binary to ${GOPATH}, it's not stable in the builder.
-	CGO_ENABLED=0 GOOS=$(shell go env GOOS) GOARCH=$(shell go env GOARCH) go build -mod=vendor -a -ldflags '-X main.vendorVersion='"${DRIVER_NAME}-${GIT_COMMIT_SHA}"' -extldflags "-static"' -o bin/${EXE_DRIVER_NAME} ./cmd/
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(ARCH) go build -mod=vendor -a -ldflags '-X main.vendorVersion='"${DRIVER_NAME}-${GIT_COMMIT_SHA}"' -extldflags "-static"' -o bin/${EXE_DRIVER_NAME} ./cmd/
 
 .PHONY: buildmac
 buildmac:
@@ -100,7 +100,7 @@ ut-coverage:
 
 .PHONY: buildimage
 buildimage: build-systemutil
-	docker build	\
+	docker build --platform=linux/$(ARCH) \
         --build-arg git_commit_id=${GIT_COMMIT_SHA} \
         --build-arg git_remote_url=${GIT_REMOTE_URL} \
         --build-arg build_date=${BUILD_DATE} \
@@ -112,7 +112,7 @@ buildimage: build-systemutil
 .PHONY: build-systemutil
 build-systemutil:
 	docker build --build-arg TAG=$(GIT_COMMIT_SHA) --build-arg OS=linux --build-arg ARCH=$(ARCH) -t csi-driver-builder --pull -f Dockerfile.builder .
-	docker run --env GHE_TOKEN=${GHE_TOKEN} csi-driver-builder
+	docker run --env GHE_TOKEN=${GHE_TOKEN} --env GOOS=linux --env GOARCH=$(ARCH) --env TAG=$(GIT_COMMIT_SHA) csi-driver-builder
 	docker cp `docker ps -q -n=1`:/go/bin/${EXE_DRIVER_NAME} ./${EXE_DRIVER_NAME}
 
 .PHONY: test-sanity
