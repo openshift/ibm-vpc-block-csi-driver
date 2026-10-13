@@ -1,0 +1,183 @@
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: ibm-vpc-block-csi-node
+  namespace: kube-system
+  labels:
+    app: ibm-vpc-block-csi-node
+    addonmanager.kubernetes.io/mode: Reconcile
+    app.kubernetes.io/name: ibm-vpc-block-csi-driver
+spec:
+  selector:
+    matchLabels:
+      app: ibm-vpc-block-csi-node
+      app.kubernetes.io/name: ibm-vpc-block-csi-driver
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9080"
+        prometheus.io/path: "/metrics"
+      labels:
+        app: ibm-vpc-block-csi-node
+        app.kubernetes.io/name: ibm-vpc-block-csi-driver
+    spec:
+      priorityClassName: system-node-critical
+      serviceAccountName: ibm-vpc-block-node-sa
+      tolerations:
+      - operator: Exists
+      containers:
+        - name: csi-driver-registrar
+          image: MUSTPATCHWITHKUSTOMIZE
+          imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+            runAsGroup: 0
+            privileged: false
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--kubelet-registration-path=$(DRIVER_REGISTRATION_SOCK)"
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+            - name: DRIVER_REGISTRATION_SOCK
+              value: /var/lib/kubelet/plugins/vpc.block.csi.ibm.io/csi.sock
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: VOLUME_ATTACHMENT_LIMIT
+              value: "{{kube-system.addon-vpc-block-csi-driver-configmap.VolumeAttachmentLimit}}{{^kube-system.addon-vpc-block-csi-driver-configmap.VolumeAttachmentLimit}}12{{/kube-system.addon-vpc-block-csi-driver-configmap.VolumeAttachmentLimit}}"
+          resources:
+            limits:
+              cpu: "{{kube-system.addon-vpc-block-csi-driver-configmap.CSIDriverRegistrarCPULimit}}{{^kube-system.addon-vpc-block-csi-driver-configmap.CSIDriverRegistrarCPULimit}}40m{{/kube-system.addon-vpc-block-csi-driver-configmap.CSIDriverRegistrarCPULimit}}"
+              memory: "{{kube-system.addon-vpc-block-csi-driver-configmap.CSIDriverRegistrarMemoryLimit}}{{^kube-system.addon-vpc-block-csi-driver-configmap.CSIDriverRegistrarMemoryLimit}}80Mi{{/kube-system.addon-vpc-block-csi-driver-configmap.CSIDriverRegistrarMemoryLimit}}"
+            requests:
+              cpu: "{{kube-system.addon-vpc-block-csi-driver-configmap.CSIDriverRegistrarCPURequest}}{{^kube-system.addon-vpc-block-csi-driver-configmap.CSIDriverRegistrarCPURequest}}10m{{/kube-system.addon-vpc-block-csi-driver-configmap.CSIDriverRegistrarCPURequest}}"
+              memory: "{{kube-system.addon-vpc-block-csi-driver-configmap.CSIDriverRegistrarMemoryRequest}}{{^kube-system.addon-vpc-block-csi-driver-configmap.CSIDriverRegistrarMemoryRequest}}20Mi{{/kube-system.addon-vpc-block-csi-driver-configmap.CSIDriverRegistrarMemoryRequest}}"
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+        - name: iks-vpc-block-node-driver
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+            runAsGroup: 0
+            privileged: true
+          image: MUSTPATCHWITHKUSTOMIZE
+          imagePullPolicy: Always
+          args:
+            - "--v=5"
+            - "--endpoint=unix:/csi/csi.sock"
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: IS_NODE_SERVER
+              value: "true"
+            - name: SIDECAR_GROUP_ID
+              value: "2121"
+          envFrom:
+          - configMapRef:
+              name: ibm-vpc-block-csi-configmap
+          resources:
+            limits:
+              cpu: "{{kube-system.addon-vpc-block-csi-driver-configmap.NodeDriverCPULimit}}{{^kube-system.addon-vpc-block-csi-driver-configmap.NodeDriverCPULimit}}120m{{/kube-system.addon-vpc-block-csi-driver-configmap.NodeDriverCPULimit}}"
+              memory: "{{kube-system.addon-vpc-block-csi-driver-configmap.NodeDriverMemoryLimit}}{{^kube-system.addon-vpc-block-csi-driver-configmap.NodeDriverMemoryLimit}}300Mi{{/kube-system.addon-vpc-block-csi-driver-configmap.NodeDriverMemoryLimit}}"
+            requests:
+              cpu: "{{kube-system.addon-vpc-block-csi-driver-configmap.NodeDriverMemoryRequest}}{{^kube-system.addon-vpc-block-csi-driver-configmap.NodeDriverMemoryRequest}}30m{{/kube-system.addon-vpc-block-csi-driver-configmap.NodeDriverMemoryRequest}}"
+              memory: "{{kube-system.addon-vpc-block-csi-driver-configmap.NodeDriverCPURequest}}{{^kube-system.addon-vpc-block-csi-driver-configmap.NodeDriverCPURequest}}75Mi{{/kube-system.addon-vpc-block-csi-driver-configmap.NodeDriverCPURequest}}"
+          ports:
+            - name: healthz
+              containerPort: 9808
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 10
+            failureThreshold: 5
+          volumeMounts:
+            - name: kubelet-data-dir
+              mountPath: /var/lib/kubelet
+              mountPropagation: "Bidirectional"
+            - name: plugin-dir
+              mountPath: /csi
+            - name: device-dir
+              mountPath: /dev
+            - name: etcudevpath
+              mountPath: /etc/udev
+            - name: runudevpath
+              mountPath: /run/udev
+            - name: libudevpath
+              mountPath: /lib/udev
+            - name : syspath
+              mountPath: /sys
+            - name: customer-auth
+              readOnly: true
+              mountPath: /etc/storage_ibmc
+        - name: liveness-probe
+          image: MUSTPATCHWITHKUSTOMIZE
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 2121
+            runAsGroup: 2121
+            privileged: false
+            seLinuxOptions: # seLinux label is set as a precaution for accessing csi socket
+              type: spc_t
+              level: s0
+          args:
+            - --csi-address=/csi/csi.sock
+          resources:
+            limits:
+              cpu: "{{kube-system.addon-vpc-block-csi-driver-configmap.LivenessProbeCPULimit}}{{^kube-system.addon-vpc-block-csi-driver-configmap.LivenessProbeCPULimit}}20m{{/kube-system.addon-vpc-block-csi-driver-configmap.LivenessProbeCPULimit}}"
+              memory: "{{kube-system.addon-vpc-block-csi-driver-configmap.LivenessProbeMemoryLimit}}{{^kube-system.addon-vpc-block-csi-driver-configmap.LivenessProbeMemoryLimit}}40Mi{{/kube-system.addon-vpc-block-csi-driver-configmap.LivenessProbeMemoryLimit}}"
+            requests:
+              cpu: "{{kube-system.addon-vpc-block-csi-driver-configmap.LivenessProbeCPURequest}}{{^kube-system.addon-vpc-block-csi-driver-configmap.LivenessProbeCPURequest}}5m{{/kube-system.addon-vpc-block-csi-driver-configmap.LivenessProbeCPURequest}}"
+              memory: "{{kube-system.addon-vpc-block-csi-driver-configmap.LivenessProbeMemoryRequest}}{{^kube-system.addon-vpc-block-csi-driver-configmap.LivenessProbeMemoryRequest}}10Mi{{/kube-system.addon-vpc-block-csi-driver-configmap.LivenessProbeMemoryRequest}}"
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+      volumes:
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: Directory
+        - name: kubelet-data-dir
+          hostPath:
+            path: /var/lib/kubelet # OpenShift worker, for kubernetes /var/data/kubelet
+            type: Directory
+        - name: plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/vpc.block.csi.ibm.io/
+            type: DirectoryOrCreate
+        - name: device-dir
+          hostPath:
+            path: /dev
+            type: Directory
+        - name: etcudevpath
+          hostPath:
+            path: /etc/udev
+            type: Directory
+        - name: runudevpath
+          hostPath:
+            path: /run/udev
+            type: Directory
+        - name: libudevpath
+          hostPath:
+            path: /lib/udev
+            type: Directory
+        - name: syspath
+          hostPath:
+            path: /sys
+            type: Directory
+        - name: customer-auth # altough its not required, This is just to finish lib configuration which is a common code in the driver
+          secret:
+            secretName: storage-secret-store
